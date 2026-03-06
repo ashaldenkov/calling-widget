@@ -1,0 +1,49 @@
+import { Paper } from '@mui/material';
+import { type ReactNode } from 'react';
+import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
+
+import { eventBus, WidgetEvent } from '../eventBus';
+import ErrorScreen from '../screens/ErrorScreen';
+import { useWidgetStore } from '../stores/widgetStore';
+import { elevatedPaperShadow } from '../theme';
+import { getErrorMessage } from '../utils';
+
+const ErrorFallback = ({ resetErrorBoundary }: FallbackProps) => {
+  const handleClose = () => {
+    useWidgetStore.getState().resetToIdle();
+    eventBus.emit(WidgetEvent.WidgetDismissed);
+    resetErrorBoundary();
+  };
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        width: 500,
+        overflow: 'hidden',
+        pointerEvents: 'auto',
+        ...elevatedPaperShadow,
+      }}
+    >
+      <ErrorScreen onClose={handleClose} />
+    </Paper>
+  );
+};
+
+const handleError = (
+  error: unknown,
+  info: { componentStack?: string | null },
+) => {
+  console.error('[CallWidget] Render error:', error, info);
+  const message = getErrorMessage(error, 'Unknown render error');
+  eventBus.emit(WidgetEvent.Error, { message });
+};
+
+export const WidgetErrorBoundary = ({ children }: { children: ReactNode }) => (
+  <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
+    {children}
+  </ErrorBoundary>
+);
