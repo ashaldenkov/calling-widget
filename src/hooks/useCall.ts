@@ -23,7 +23,7 @@ export const useCall = (
     const emitStateChange = (state: CallState) =>
       eventBus.emit(WidgetEvent.CallStateChange, {
         state,
-        customerId: store.customerId ?? undefined,
+        clientId: store.clientId ?? undefined,
       });
 
     switch (event.state) {
@@ -80,14 +80,14 @@ export const useCall = (
 
   const fetchTrunkAndCall = useCallback(
     async (params: {
-      customerId: number | null;
+      clientId: number | null;
       phoneNumber: string | null;
       agentId: number;
     }) => {
       try {
         const trunk = await trunkMutation.mutateAsync({
           extAgentId: params.agentId,
-          extCustomerId: params.customerId ?? undefined,
+          extCustomerId: params.clientId ?? undefined,
           phoneNumber: params.phoneNumber ?? undefined,
         });
 
@@ -109,7 +109,7 @@ export const useCall = (
         store.setCallState(CallState.Calling);
         eventBus.emit(WidgetEvent.CallStateChange, {
           state: CallState.Calling,
-          customerId: params.customerId ?? undefined,
+          clientId: params.clientId ?? undefined,
         });
 
         await makeCall(response);
@@ -125,7 +125,7 @@ export const useCall = (
   const [isLoading, setIsLoading] = useState(false);
 
   const startCall = useCallback(async () => {
-    const { customerId, phoneNumber, agentId } = useWidgetStore.getState();
+    const { clientId, phoneNumber, agentId } = useWidgetStore.getState();
 
     if (agentId === null) {
       handleWidgetError('Agent ID is required');
@@ -137,7 +137,7 @@ export const useCall = (
 
     setIsLoading(true);
     try {
-      await fetchTrunkAndCall({ customerId, phoneNumber, agentId });
+      await fetchTrunkAndCall({ clientId, phoneNumber, agentId });
     } finally {
       setIsLoading(false);
     }

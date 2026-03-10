@@ -8,7 +8,7 @@ export interface CallWidgetConfig {
 }
 
 export interface CallParams {
-  customerId: number;
+  clientId: number;
   phoneNumber: string;
   agentId: number;
 }
@@ -66,7 +66,7 @@ export interface WidgetState {
   config: CallWidgetConfig | null;
   screen: WidgetScreen;
   callState: CallState;
-  customerId: number | null;
+  clientId: number | null;
   phoneNumber: string | null;
   agentId: number | null;
   customerData: CustomerData | null;

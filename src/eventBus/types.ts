@@ -18,7 +18,7 @@ export interface WidgetEventPayloads {
   [WidgetEvent.Destroy]: void;
   [WidgetEvent.Initialized]: void;
   [WidgetEvent.CallInitiated]: void;
-  [WidgetEvent.CallStateChange]: { state: CallState; customerId?: number };
+  [WidgetEvent.CallStateChange]: { state: CallState; clientId?: number };
   [WidgetEvent.MicToggled]: { muted: boolean };
   [WidgetEvent.WidgetDismissed]: void;
   [WidgetEvent.Error]: { message: string };

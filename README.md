@@ -66,14 +66,14 @@ export interface CallWidgetAPI {
   emit(event: 'init', payload: CallWidgetConfig): void;
   emit(
     event: 'call',
-    payload: { customerId: number; phoneNumber: string; agentId: number },
+    payload: { clientId: number; phoneNumber: string; agentId: number },
   ): void;
   emit(event: 'destroy'): void;
   on(event: 'initialized', handler: () => void): void;
   on(event: 'call_initiated', handler: () => void): void;
   on(
     event: 'call_state_change',
-    handler: (payload: { state: string; customerId?: number }) => void,
+    handler: (payload: { state: string; clientId?: number }) => void,
   ): void;
   on(
     event: 'mic_toggled',
@@ -148,7 +148,7 @@ widget.emit('init', {
 
 ```typescript
 widget.emit('call', {
-  customerId: 123, // numeric CRM customer ID
+  clientId: 123, // numeric CRM client ID
   phoneNumber: '+1234567890', // E.164 format
   agentId: 456, // numeric CRM agent ID
 });
@@ -159,7 +159,7 @@ widget.emit('call', {
 ```typescript
 widget.on('call_state_change', (payload) => {
   // payload.state: 'calling' | 'ringing' | 'connected' | 'ended' | 'failed'
-  console.log('Call state:', payload.state, payload.customerId);
+  console.log('Call state:', payload.state, payload.clientId);
 });
 
 widget.on('call_initiated', () => {
@@ -188,11 +188,11 @@ widget.emit('destroy');
 | Event               | Direction     | Payload                                             |
 | ------------------- | ------------- | --------------------------------------------------- |
 | `init`              | Host → Widget | `{ apiBaseUrl, webBaseUrl, janusWsUrl, authToken }` |
-| `call`              | Host → Widget | `{ customerId, phoneNumber, agentId }`              |
+| `call`              | Host → Widget | `{ clientId, phoneNumber, agentId }`                |
 | `destroy`           | Host → Widget | —                                                   |
 | `initialized`       | Widget → Host | —                                                   |
 | `call_initiated`    | Widget → Host | —                                                   |
-| `call_state_change` | Widget → Host | `{ state, customerId? }`                            |
+| `call_state_change` | Widget → Host | `{ state, clientId? }`                              |
 | `mic_toggled`       | Widget → Host | `{ muted }`                                         |
 | `widget_dismissed`  | Widget → Host | —                                                   |
 | `error`             | Widget → Host | `{ message }`                                       |

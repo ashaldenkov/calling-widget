@@ -29,7 +29,7 @@ const initialState: WidgetState = {
   config: null,
   screen: 'idle',
   callState: CallState.Idle,
-  customerId: null,
+  clientId: null,
   phoneNumber: null,
   agentId: null,
   customerData: null,
@@ -46,7 +46,7 @@ export const useWidgetStore = create<WidgetStore>((set) => ({
 
   setCallParams: (params: CallParams) => {
     set({
-      customerId: params.customerId,
+      clientId: params.clientId,
       phoneNumber: params.phoneNumber,
       agentId: params.agentId,
     });
