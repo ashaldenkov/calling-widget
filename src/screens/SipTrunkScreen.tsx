@@ -48,7 +48,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
   const [isStarting, setIsStarting] = useState(false);
 
   const { data, isPending, isError, error } = useQuery({
-    queryKey: ['widget', 'trunks-for-call'],
+    queryKey: ['widget', 'trunks-for-call', agentId, clientId, phoneNumber],
     queryFn: () =>
       api<TrunkResponse>('/widget/trunks-for-call', {
         method: 'POST',
