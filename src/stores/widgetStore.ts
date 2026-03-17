@@ -11,6 +11,7 @@ import {
   type WidgetScreen,
   type WidgetState,
 } from '../types/types';
+import type { BrowserWarning } from '../utils/browserDetection';
 
 interface WidgetActions {
   setConfig: (config: CallWidgetConfig) => void;
@@ -26,6 +27,7 @@ interface WidgetActions {
   setSelectedTrunkId: (id: string | null) => void;
   setStatusConfirmedDuringCall: (confirmed: boolean) => void;
   setIsCollapsed: (v: boolean) => void;
+  setCompatibilityWarnings: (warnings: BrowserWarning[]) => void;
   endCall: () => void;
   resetToIdle: () => void;
 }
@@ -62,6 +64,7 @@ const initialState: WidgetState = {
   selectedTrunkId: null,
   statusConfirmedDuringCall: false,
   isCollapsed: true,
+  compatibilityWarnings: [],
 };
 
 export const useWidgetStore = create<WidgetStore>()(
@@ -112,6 +115,9 @@ export const useWidgetStore = create<WidgetStore>()(
 
       setIsCollapsed: (isCollapsed) => set({ isCollapsed }),
 
+      setCompatibilityWarnings: (compatibilityWarnings) =>
+        set({ compatibilityWarnings }),
+
       endCall: () => set({ callState: CallState.Ended, startCallTime: null }),
 
       resetToIdle: () =>
@@ -152,7 +158,11 @@ export const useWidgetStore = create<WidgetStore>()(
         }
 
         // Transient screens that have no meaning after a reload
-        if (stored.screen === 'error' || stored.screen === 'sipTrunk') {
+        if (
+          stored.screen === 'error' ||
+          stored.screen === 'sipTrunk' ||
+          stored.screen === 'compatibilityWarning'
+        ) {
           return { ...current, ...stored, screen: 'idle' };
         }
 

@@ -1,5 +1,7 @@
 import type { TCountryCode } from 'countries-list';
 
+import type { BrowserWarning } from '../utils/browserDetection';
+
 export interface CallWidgetConfig {
   apiBaseUrl: string;
   webBaseUrl: string;
@@ -99,7 +101,8 @@ export type WidgetScreen =
   | 'sipTrunk'
   | 'changeStatus'
   | 'calling'
-  | 'error';
+  | 'error'
+  | 'compatibilityWarning';
 
 export interface MuteNotificationState {
   visible: boolean;
@@ -121,4 +124,5 @@ export interface WidgetState {
   selectedTrunkId: string | null;
   statusConfirmedDuringCall: boolean;
   isCollapsed: boolean;
+  compatibilityWarnings: BrowserWarning[];
 }

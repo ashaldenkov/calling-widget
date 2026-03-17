@@ -11,6 +11,7 @@ import {
   type CallParams,
   type CallWidgetConfig,
 } from './types/types';
+import { detectBrowserWarnings } from './utils/browserDetection';
 
 declare const __WIDGET_VERSION__: string;
 
@@ -36,6 +37,16 @@ function ensureMount(): void {
 
   const shadow =
     container.shadowRoot ?? container.attachShadow({ mode: 'open' });
+
+  if (!document.querySelector('link[data-cw-font]')) {
+    const fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.setAttribute('data-cw-font', '');
+    fontLink.href =
+      'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap';
+    document.head.appendChild(fontLink);
+  }
+
   const mountPoint = document.createElement('div');
   shadow.appendChild(mountPoint);
 
@@ -72,7 +83,14 @@ function handleCall(params: CallParams) {
   }
 
   state.setCallParams(params);
-  state.setScreen('sipTrunk');
+
+  const warnings = detectBrowserWarnings();
+  if (warnings.length === 0 || sessionStorage.getItem('cw-compat-warned')) {
+    state.setScreen('sipTrunk');
+  } else {
+    state.setCompatibilityWarnings(warnings);
+    state.setScreen('compatibilityWarning');
+  }
 }
 
 function handleUpdateToken({ token }: { token: string }) {

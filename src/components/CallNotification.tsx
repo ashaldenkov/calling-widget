@@ -1,5 +1,6 @@
 import CloseIcon from '@mui/icons-material/Close';
 import { Box, CircularProgress, IconButton, Typography } from '@mui/material';
+import React from 'react';
 
 import { colors } from '../theme/colors';
 import { flexBetweenCenter } from '../theme/styles';
@@ -9,7 +10,7 @@ type NotificationType = 'info' | 'error';
 
 interface CallNotificationProps {
   type: NotificationType;
-  message: string;
+  message: React.ReactNode;
   countdown?: number;
   onClose?: () => void;
 }
