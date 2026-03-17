@@ -147,6 +147,17 @@ export const componentsStyle = {
         overflowY: 'auto',
         flex: 1,
         minHeight: 0,
+        padding: '16px 24px',
+        '.MuiDialogTitle-root + &': {
+          paddingTop: '16px',
+        },
+      },
+    },
+  },
+  MuiDialogActions: {
+    styleOverrides: {
+      root: {
+        padding: '16px 16px',
       },
     },
   },

@@ -14,14 +14,46 @@ export interface CallParams {
 }
 
 export interface TrunkResponse {
-  id: number;
-  name: string;
-  brandId: string;
-  enabled: boolean;
-  isDefault: boolean;
-  minuteCost: number;
-  status: string;
   customerInfo: CustomerData;
+  trunks: TrunkListItem[];
+}
+
+export interface TrunkListItem {
+  id: string;
+  brandId: string;
+  name: string;
+  isDefault: boolean;
+  status: string;
+  enabled: boolean;
+  minuteCost: number;
+}
+
+export interface StatusOption {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface StatusesResponse {
+  data: StatusOption[];
+  pageInfo: {
+    page: number;
+    perPage: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export interface UpdateStatusData {
+  statusId: string;
+  comment?: string;
+}
+
+export interface UpdateStatusResponse {
+  status: CustomerStatus;
+  message: string;
 }
 
 export interface CallCustomerResponse {
@@ -55,7 +87,19 @@ export enum CallState {
   Failed = 'failed',
 }
 
-export type WidgetScreen = 'idle' | 'confirmation' | 'calling' | 'error';
+export const ActiveCallStates = new Set<CallState>([
+  CallState.Calling,
+  CallState.Ringing,
+  CallState.Connected,
+  CallState.OnHold,
+]);
+
+export type WidgetScreen =
+  | 'idle'
+  | 'sipTrunk'
+  | 'changeStatus'
+  | 'calling'
+  | 'error';
 
 export interface MuteNotificationState {
   visible: boolean;
@@ -74,4 +118,7 @@ export interface WidgetState {
   startCallTime: number | null;
   error: string | null; // message on error screen
   notification: string | null; // notification on any screen
+  selectedTrunkId: string | null;
+  statusConfirmedDuringCall: boolean;
+  isCollapsed: boolean;
 }

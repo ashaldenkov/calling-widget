@@ -1,17 +1,25 @@
 import { Collapse, Paper } from '@mui/material';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef } from 'react';
 
+import { api } from '../api/api';
 import { eventBus, WidgetEvent } from '../eventBus';
 import { useCall } from '../hooks/useCall';
 import {
   CallInformationScreen,
+  ChangeStatusScreen,
   CollapsedCallBar,
-  ConfirmationScreen,
   ErrorScreen,
+  SipTrunkScreen,
 } from '../screens';
 import { useWidgetStore } from '../stores/widgetStore';
 import { colors, elevatedPaperShadow } from '../theme';
-import { CallState } from '../types/types';
+import {
+  ActiveCallStates,
+  CallState,
+  type UpdateStatusResponse,
+} from '../types/types';
+import { useMuteNotification } from '../utils';
 
 export const ExternalCallWidget = () => {
   const screen = useWidgetStore((s) => s.screen);
@@ -19,36 +27,101 @@ export const ExternalCallWidget = () => {
   const customerData = useWidgetStore((s) => s.customerData);
   const isMicMuted = useWidgetStore((s) => s.isMicMuted);
   const error = useWidgetStore((s) => s.error);
+  const clientId = useWidgetStore((s) => s.clientId);
+  const isCollapsed = useWidgetStore((s) => s.isCollapsed);
 
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const { hangUp, setMute, startCall } = useCall();
+  const muteNotification = useMuteNotification();
 
-  const isConnected = callState === CallState.Connected;
+  // Fire widget_opened if already visible at mount time. On reload mid-call, setScreen fires it
+  useEffect(() => {
+    if (useWidgetStore.getState().screen !== 'idle') {
+      eventBus.emit(WidgetEvent.WidgetOpened);
+    }
+  }, []);
 
-  const { hangUp, setMute, startCall, isLoading } = useCall(audioRef);
-
+  // Skip emitting on initial mount
+  const isMicInitialRef = useRef(true);
   useEffect(() => {
     setMute(isMicMuted);
+    if (isMicInitialRef.current) {
+      isMicInitialRef.current = false;
+      return;
+    }
     eventBus.emit(WidgetEvent.MicToggled, { muted: isMicMuted });
   }, [isMicMuted, setMute]);
 
-  const handleClose = useCallback(() => {
+  const statusMutation = useMutation<
+    UpdateStatusResponse,
+    Error,
+    { statusId: string; comment?: string }
+  >({
+    mutationFn: ({ statusId, comment }) =>
+      api<UpdateStatusResponse>(`/customers/${customerData!.dialerId}/status`, {
+        method: 'PATCH',
+        data: { statusId, ...(comment ? { comment } : {}) },
+      }),
+    onSuccess: (result, { statusId }) => {
+      const store = useWidgetStore.getState();
+      if (store.customerData) {
+        store.setCustomerData({ ...store.customerData, status: result.status });
+      }
+      eventBus.emit(WidgetEvent.StatusConfirmed, {
+        clientId: clientId!,
+        statusId,
+        dialerId: store.customerData!.dialerId,
+      });
+      if (ActiveCallStates.has(store.callState)) {
+        store.setStatusConfirmedDuringCall(true);
+        store.setScreen('calling');
+      } else {
+        store.resetToIdle();
+      }
+    },
+    onError: (error) => {
+      eventBus.emit(WidgetEvent.Error, { message: error.message });
+    },
+  });
+
+  const handleDismiss = useCallback(() => {
     void hangUp();
     useWidgetStore.getState().resetToIdle();
-    setIsCollapsed(true);
-    eventBus.emit(WidgetEvent.WidgetDismissed);
+    useWidgetStore.getState().setIsCollapsed(true);
   }, [hangUp]);
 
-  useEffect(() => {
-    if (callState === CallState.Ended) {
-      handleClose();
+  const handleEndCall = useCallback(() => {
+    const store = useWidgetStore.getState();
+    if (store.callState === CallState.Failed) {
+      store.resetToIdle();
+      return;
     }
-  }, [callState, handleClose]);
+    store.setIsCollapsed(true);
+    void hangUp();
+  }, [hangUp]);
 
-  const handleConfirm = useCallback(async () => {
-    setIsCollapsed(true);
-    await startCall();
-  }, [startCall]);
+  const handleOpenStatusChange = useCallback(() => {
+    useWidgetStore.getState().setScreen('changeStatus');
+  }, []);
+
+  const handleStatusSave = useCallback(
+    async (statusId: string, comment: string) => {
+      await statusMutation.mutateAsync({
+        statusId,
+        comment: comment || undefined,
+      });
+    },
+    [statusMutation],
+  );
+
+  const handleStatusCancel = useCallback(() => {
+    const store = useWidgetStore.getState();
+    if (ActiveCallStates.has(store.callState)) {
+      store.setScreen('calling');
+    } else {
+      eventBus.emit(WidgetEvent.StatusChangeSkipped, { clientId: clientId! });
+      store.resetToIdle();
+    }
+  }, [clientId]);
 
   if (screen === 'idle') return null;
 
@@ -64,23 +137,20 @@ export const ExternalCallWidget = () => {
         pointerEvents: 'auto',
         ...elevatedPaperShadow,
         outline:
-          isConnected && screen === 'calling'
+          callState === CallState.Connected && screen === 'calling'
             ? `1px solid ${colors.success}`
             : 'none',
       }}
     >
-      <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
-
-      {screen === 'confirmation' && (
-        <ConfirmationScreen
-          onCancel={handleClose}
-          onConfirm={() => void handleConfirm()}
-          loading={isLoading}
+      {screen === 'sipTrunk' && (
+        <SipTrunkScreen
+          onConfirm={(trunkId) => startCall(trunkId)}
+          onCancel={handleDismiss}
         />
       )}
 
       {screen === 'error' && (
-        <ErrorScreen onClose={handleClose} message={error ?? undefined} />
+        <ErrorScreen onClose={handleDismiss} message={error ?? undefined} />
       )}
 
       {screen === 'calling' && customerData && (
@@ -88,18 +158,27 @@ export const ExternalCallWidget = () => {
           <Collapse in={!isCollapsed} timeout={300} unmountOnExit>
             <CallInformationScreen
               customer={customerData}
-              onCollapse={() => setIsCollapsed(true)}
-              onEndCall={handleClose}
+              muteNotification={muteNotification}
+              onCollapse={() => useWidgetStore.getState().setIsCollapsed(true)}
+              onEndCall={handleEndCall}
+              onChangeStatus={handleOpenStatusChange}
             />
           </Collapse>
           <Collapse in={isCollapsed} timeout={300} unmountOnExit>
             <CollapsedCallBar
               customer={customerData}
-              onExpand={() => setIsCollapsed(false)}
-              onEndCall={handleClose}
+              onExpand={() => useWidgetStore.getState().setIsCollapsed(false)}
+              onEndCall={handleEndCall}
             />
           </Collapse>
         </>
+      )}
+
+      {screen === 'changeStatus' && customerData && (
+        <ChangeStatusScreen
+          onSave={handleStatusSave}
+          onCancel={handleStatusCancel}
+        />
       )}
     </Paper>
   );

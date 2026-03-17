@@ -15,7 +15,7 @@ const disableAllTsEslintRules = Object.fromEntries(
 );
 
 export default tseslint.config(
-  { ignores: ['dist', 'vite.config.ts'] },
+  { ignores: ['dist', 'vite.config.ts', 'vite.loader.config.ts'] },
   {
     extends: [
       js.configs.recommended,

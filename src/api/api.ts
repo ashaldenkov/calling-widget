@@ -1,14 +1,16 @@
+import { mapHttpError } from '../errors';
 import { useWidgetStore } from '../stores/widgetStore';
 
 interface RequestConfig {
   method?: string;
   data?: unknown;
   params?: Record<string, unknown>;
+  signal?: AbortSignal;
 }
 
 export async function api<T>(
   path: string,
-  { method = 'GET', data, params }: RequestConfig = {},
+  { method = 'GET', data, params, signal }: RequestConfig = {},
 ): Promise<T> {
   const config = useWidgetStore.getState().config;
   if (!config) throw new Error('Widget not initialized');
@@ -26,12 +28,13 @@ export async function api<T>(
   }
 
   const response = await fetch(url.toString(), {
-    method,
+    method: method.toUpperCase(),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${config.authToken}`,
     },
     ...(data && method !== 'GET' ? { body: JSON.stringify(data) } : {}),
+    ...(signal ? { signal } : {}),
   });
 
   if (!response.ok) {
@@ -39,10 +42,9 @@ export async function api<T>(
     let message: string;
     try {
       const parsed = JSON.parse(text) as { error?: string; message?: string };
-      message =
-        parsed.error ?? parsed.message ?? `Request failed (${response.status})`;
+      message = mapHttpError(response.status, parsed.error ?? parsed.message);
     } catch {
-      message = text || `Request failed (${response.status})`;
+      message = mapHttpError(response.status, text || undefined);
     }
     throw new Error(message);
   }

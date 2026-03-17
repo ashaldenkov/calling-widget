@@ -71,7 +71,7 @@ const CollapsedCallBar = ({
       <Collapse in={!!notification} timeout={300} unmountOnExit>
         <CallNotification
           type='error'
-          message='Something went wrong.'
+          message={notification!}
           onClose={() => setNotification(null)}
         />
       </Collapse>

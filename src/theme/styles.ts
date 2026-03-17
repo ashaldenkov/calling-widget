@@ -60,6 +60,24 @@ export const formButtonPrimary = {
   },
   '&:disabled': {
     opacity: 0.5,
+    backgroundColor: 'primary.main',
+    color: 'primary.contrastText',
+  },
+} as const;
+
+export const formButtonSecondary = {
+  ...formButton,
+  textTransform: 'none',
+  fontSize: '14px',
+  fontWeight: 400,
+  backgroundColor: 'background.default',
+  color: 'textColor.primary.default',
+  '&:hover': {
+    backgroundColor: 'background.default',
+    opacity: 0.9,
+  },
+  '&:disabled': {
+    opacity: 0.5,
   },
 } as const;
 
@@ -72,4 +90,16 @@ export const chipBase = {
   fontWeight: 400,
   fontSize: 14,
   height: 28,
+} as const;
+
+export const listRowSx = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '34px',
+  px: '18px',
+  py: '12px',
+  cursor: 'pointer',
+  '&:hover': {
+    backgroundColor: 'background.default',
+  },
 } as const;

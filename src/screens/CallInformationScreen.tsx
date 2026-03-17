@@ -1,6 +1,7 @@
 import { ArrowDropDown } from '@mui/icons-material';
 import { MicNone as MicIcon } from '@mui/icons-material';
 import CallEndOutlinedIcon from '@mui/icons-material/CallEndOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import MicOffIcon from '@mui/icons-material/MicOffOutlined';
 import {
   Box,
@@ -28,22 +29,25 @@ import {
   truncateText,
 } from '../theme/styles';
 import type { CustomerData } from '../types/types';
-import { useCallStatus, useLocalTime, useMuteNotification } from '../utils';
+import { useCallStatus, useLocalTime } from '../utils';
 
 interface CallInformationScreenProps {
   customer: CustomerData;
+  muteNotification: { visible: boolean; countdown: number };
   onCollapse: () => void;
   onEndCall: () => void;
+  onChangeStatus: () => void;
 }
 
 const CallInformationScreen = ({
   customer,
+  muteNotification,
   onCollapse,
   onEndCall,
+  onChangeStatus,
 }: CallInformationScreenProps) => {
   const { isMicMuted, setMicMuted, notification, setNotification } =
     useWidgetStore();
-  const muteNotification = useMuteNotification();
   const { label: callStatusLabel, duration: callDuration } = useCallStatus();
 
   const FlagIcon = flags[customer.country.toUpperCase() as keyof typeof flags];
@@ -90,7 +94,7 @@ const CallInformationScreen = ({
         <Collapse in={!!notification} timeout={300} unmountOnExit>
           <CallNotification
             type='error'
-            message='Something went wrong.'
+            message={notification!}
             onClose={() => setNotification(null)}
           />
         </Collapse>
@@ -168,23 +172,28 @@ const CallInformationScreen = ({
           >
             Dialer Status:
           </Typography>
-          {customer.status ? (
-            <Chip
-              label={customer.status.name}
-              size='small'
-              sx={{
-                ...chipBase,
-                maxWidth: '80%',
-                backgroundColor: `${customer.status.color}20`,
-                border: `1px solid ${customer.status.color}`,
-                color: 'text.primary',
-                borderRadius: '100px',
-                '& .MuiChip-label': { px: 1 },
-              }}
-            />
-          ) : (
-            <Typography variant='body3'>N/A</Typography>
-          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {customer.status ? (
+              <Chip
+                label={customer.status.name}
+                size='small'
+                sx={{
+                  ...chipBase,
+                  maxWidth: '80%',
+                  backgroundColor: `${customer.status.color}20`,
+                  border: `1px solid ${customer.status.color}`,
+                  color: 'text.primary',
+                  borderRadius: '100px',
+                  '& .MuiChip-label': { px: 1 },
+                }}
+              />
+            ) : (
+              <Typography variant='body3'>N/A</Typography>
+            )}
+            <IconButton size='small' onClick={onChangeStatus} sx={{ p: '3px' }}>
+              <EditOutlinedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Box>
         </Box>
 
         <Box

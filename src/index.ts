@@ -6,7 +6,11 @@ import { App } from './App';
 import { eventBus, WidgetEvent } from './eventBus';
 import { destroyJanusSession } from './stores/janusStore';
 import { useWidgetStore } from './stores/widgetStore';
-import type { CallParams, CallWidgetConfig } from './types/types';
+import {
+  ActiveCallStates,
+  type CallParams,
+  type CallWidgetConfig,
+} from './types/types';
 
 declare const __WIDGET_VERSION__: string;
 
@@ -30,7 +34,8 @@ function ensureMount(): void {
     document.body.appendChild(container);
   }
 
-  const shadow = container.shadowRoot ?? container.attachShadow({ mode: 'open' });
+  const shadow =
+    container.shadowRoot ?? container.attachShadow({ mode: 'open' });
   const mountPoint = document.createElement('div');
   shadow.appendChild(mountPoint);
 
@@ -40,7 +45,7 @@ function ensureMount(): void {
 
 function handleInit(config: CallWidgetConfig) {
   const state = useWidgetStore.getState();
-  if (state.screen !== 'idle') {
+  if (ActiveCallStates.has(state.callState)) {
     console.warn(`${LOG_PREFIX} Cannot re-initialize during active call.`);
     return;
   }
@@ -67,27 +72,28 @@ function handleCall(params: CallParams) {
   }
 
   state.setCallParams(params);
-  state.setScreen('confirmation');
+  state.setScreen('sipTrunk');
 }
 
-function handleDestroy() {
+function handleUpdateToken({ token }: { token: string }) {
+  const state = useWidgetStore.getState();
+  if (!state.config) {
+    console.warn(`${LOG_PREFIX} Cannot update token: widget not initialized.`);
+    return;
+  }
+  state.updateAuthToken(token);
+}
+
+function handleDismiss() {
   destroyJanusSession();
   queryClient.clear();
   useWidgetStore.getState().resetToIdle();
-
-  if (root) {
-    root.unmount();
-    root = null;
-  }
-  if (container) {
-    container.remove();
-    container = null;
-  }
 }
 
 eventBus.on(WidgetEvent.Init, handleInit);
 eventBus.on(WidgetEvent.Call, handleCall);
-eventBus.on(WidgetEvent.Destroy, handleDestroy);
+eventBus.on(WidgetEvent.Dismiss, handleDismiss);
+eventBus.on(WidgetEvent.UpdateToken, handleUpdateToken);
 
 declare global {
   interface Window {
