@@ -23,9 +23,8 @@ export const truncateText = {
 } as const;
 
 export const dialogActions = {
-  pt: 0,
   px: '24px',
-  pb: '24px',
+  py: '16px',
   gap: '8px',
   fontSize: '14px',
   fontWeight: 500,

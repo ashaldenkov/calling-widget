@@ -9,6 +9,7 @@ import {
   CallInformationScreen,
   ChangeStatusScreen,
   CollapsedCallBar,
+  CompatibilityWarningScreen,
   ErrorScreen,
   SipTrunkScreen,
 } from '../screens';
@@ -29,6 +30,7 @@ export const ExternalCallWidget = () => {
   const error = useWidgetStore((s) => s.error);
   const clientId = useWidgetStore((s) => s.clientId);
   const isCollapsed = useWidgetStore((s) => s.isCollapsed);
+  const compatibilityWarnings = useWidgetStore((s) => s.compatibilityWarnings);
 
   const { hangUp, setMute, startCall } = useCall();
   const muteNotification = useMuteNotification();
@@ -142,6 +144,17 @@ export const ExternalCallWidget = () => {
             : 'none',
       }}
     >
+      {screen === 'compatibilityWarning' && (
+        <CompatibilityWarningScreen
+          warnings={compatibilityWarnings}
+          onContinue={() => {
+            sessionStorage.setItem('cw-compat-warned', '1');
+            useWidgetStore.getState().setScreen('sipTrunk');
+          }}
+          onDismiss={handleDismiss}
+        />
+      )}
+
       {screen === 'sipTrunk' && (
         <SipTrunkScreen
           onConfirm={(trunkId) => startCall(trunkId)}

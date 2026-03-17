@@ -20,6 +20,8 @@ src/
   components/
     ExternalCallWidget.tsx  # Widget orchestration: screens, call flow, store
     CallNotification.tsx    # Info/error notification bar
+    ConfirmationDialog.tsx  # Reusable confirmation dialog (used in SipTrunkScreen)
+    StatusesList.tsx        # Infinite-scroll status picker (used in ChangeStatusScreen)
     WidgetErrorBoundary.tsx # React error boundary for ErrorScreen
   screens/
     index.ts
@@ -27,7 +29,7 @@ src/
     CallInformationScreen.tsx
     CollapsedCallBar.tsx
     ChangeStatusScreen.tsx
-    ConfirmationScreen.tsx
+    CompatibilityWarningScreen.tsx
     ErrorScreen.tsx
   stores/
     widgetStore.ts          # Zustand state
@@ -46,6 +48,7 @@ src/
 - **POST** `{apiBaseUrl}/widget/trunks-for-call` — body `{ extAgentId, extCustomerId?, phoneNumber? }`, returns `{ customerInfo, trunks: [...] }` with all available SIP trunks.
 - **POST** `{apiBaseUrl}/customers/:customerId/call` — body `{ trunkId: number }`, returns `{ bridgeId: string, targetUri: string }`.
 - **PATCH** `{apiBaseUrl}/customers/:customerId/status` — body `{ statusId: string, comment?: string }`, returns updated customer status.
+- **GET** `{apiBaseUrl}/statuses` — query params `{ page, perPage, search? }`, returns `{ data: StatusOption[], pageInfo: { ... } }` (paginated).
 
 All requests use `Authorization: Bearer {authToken}` from the init config.
 
@@ -356,4 +359,4 @@ Release workflow:
 
 ## Style Isolation
 
-The widget renders inside a Shadow DOM — immune to host page CSS. All MUI/Emotion styles inject into the shadow root. The container uses `z-index: 1300`; host elements that must appear above it need a higher z-index.
+The widget renders inside a Shadow DOM — immune to host page CSS. All MUI/Emotion styles inject into the shadow root. The Roboto font is loaded via a Google Fonts `<link>` injected into `document.head` — `@font-face` so rules at document scope are visible inside shadow trees across all browsers. The container uses `z-index: 1300`; host elements that must appear above it need a higher z-index.

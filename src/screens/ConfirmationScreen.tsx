@@ -1,10 +1,11 @@
 import { Box, Button, Typography } from '@mui/material';
 
-import { colors } from '../theme/colors';
 import {
   dialogActions,
   dialogTitle,
   dialogTitlePadding,
+  formButtonPrimary,
+  formButtonSecondary,
 } from '../theme/styles';
 
 interface ConfirmationScreenProps {
@@ -17,15 +18,6 @@ const messageTextStyles = {
   color: 'text.primary',
   fontSize: '14px',
   lineHeight: 1.715,
-};
-
-const buttonStyles = {
-  height: '40px',
-  padding: '10px 22px',
-  textTransform: 'none',
-  borderRadius: 2,
-  fontSize: 14,
-  fontWeight: 500,
 };
 
 const ConfirmationScreen = ({
@@ -51,32 +43,14 @@ const ConfirmationScreen = ({
           justifyContent: 'flex-end',
         }}
       >
-        <Button
-          onClick={onCancel}
-          variant='contained'
-          sx={{
-            ...buttonStyles,
-            backgroundColor: 'background.default',
-            color: 'textColor.primary.default',
-            '&:hover': {
-              backgroundColor: 'action.hover',
-            },
-          }}
-        >
+        <Button onClick={onCancel} variant='contained' sx={formButtonSecondary}>
           Cancel
         </Button>
         <Button
           variant='contained'
           onClick={onConfirm}
           disabled={loading}
-          sx={{
-            ...buttonStyles,
-            backgroundColor: colors.teal500,
-            color: 'white',
-            '&:hover': {
-              opacity: 0.9,
-            },
-          }}
+          sx={formButtonPrimary}
         >
           Confirm
         </Button>

@@ -137,7 +137,7 @@ const StatusesList = ({
           ))}
         </Stack>
       </RadioGroup>
-      <Box ref={loadMoreRef} sx={{ minHeight: 1 }}>
+      <Box ref={loadMoreRef}>
         {isFetchingNextPage && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
             <CircularProgress size={20} />
