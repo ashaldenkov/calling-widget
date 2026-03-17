@@ -75,21 +75,28 @@ function handleCall(params: CallParams) {
     return;
   }
 
-  if (state.screen !== 'idle') {
+  if (ActiveCallStates.has(state.callState) || state.screen === 'changeStatus') {
     console.warn(
       `${LOG_PREFIX} Widget is busy (screen: ${state.screen}), ignoring call.`,
     );
     return;
   }
 
-  state.setCallParams(params);
+  if (state.screen !== 'idle') {
+    destroyJanusSession();
+    queryClient.clear();
+    state.resetToIdle();
+  }
+
+  useWidgetStore.getState().setCallParams(params);
 
   const warnings = detectBrowserWarnings();
+  const freshState = useWidgetStore.getState();
   if (warnings.length === 0 || sessionStorage.getItem('cw-compat-warned')) {
-    state.setScreen('sipTrunk');
+    freshState.setScreen('sipTrunk');
   } else {
-    state.setCompatibilityWarnings(warnings);
-    state.setScreen('compatibilityWarning');
+    freshState.setCompatibilityWarnings(warnings);
+    freshState.setScreen('compatibilityWarning');
   }
 }
 
