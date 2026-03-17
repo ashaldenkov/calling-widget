@@ -86,7 +86,7 @@ export const getCallStateLabel = (callState: CallState): string => {
     case CallState.Failed:
       return 'Call Failed';
     default:
-      return 'Idle';
+      return 'Reconnecting...';
   }
 };
 

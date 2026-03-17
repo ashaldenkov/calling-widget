@@ -2,6 +2,7 @@ import { Paper } from '@mui/material';
 import { type ReactNode } from 'react';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 
+import { ERR_RENDER } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import ErrorScreen from '../screens/ErrorScreen';
 import { useWidgetStore } from '../stores/widgetStore';
@@ -38,7 +39,7 @@ const handleError = (
   info: { componentStack?: string | null },
 ) => {
   console.error('[CallWidget] Render error:', error, info);
-  const message = getErrorMessage(error, 'Unknown render error');
+  const message = getErrorMessage(error, ERR_RENDER);
   eventBus.emit(WidgetEvent.Error, { message });
 };
 

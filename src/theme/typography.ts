@@ -34,9 +34,10 @@ export const typography = {
     fontWeight: fontWeight.regular,
   },
   h6: {
-    fontSize: 'clamp(1.125rem, 1.25vw + 0.75rem, 1.5rem)', // 18px → 24px
-    lineHeight: 1.17,
+    fontSize: 'clamp(1.125rem, 1.25vw + 0.75rem, 1.25rem)', // 18px → 20px
     fontWeight: fontWeight.medium,
+    letterSpacing: '0.15px',
+    lineHeight: 1.6,
   },
   bodyLargeRegular: {
     fontSize: 'clamp(0.875rem, 0.5vw + 0.75rem, 1rem)', // 14px → 16px

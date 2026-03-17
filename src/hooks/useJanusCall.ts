@@ -1,8 +1,17 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 
+import {
+  ERR_CALL_FAILED,
+  ERR_JANUS_CONNECTION,
+  ERR_JANUS_NOT_LOADED,
+} from '../errors';
 import { getJanusSession } from '../stores/janusStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
 import { getErrorMessage } from '../utils';
+import {
+  createUnlockAudioElement,
+  ensureAudioContext,
+} from '../utils/callAudioUtils';
 
 const LOG_PREFIX = '[Janus Call]';
 
@@ -15,7 +24,7 @@ export interface JanusCallEvent {
 
 export interface UseJanusCallOptions {
   onEvent?: (event: JanusCallEvent) => void;
-  audioElementRef?: React.RefObject<HTMLAudioElement | null>;
+  onMicDisconnected?: () => void;
   janusWsUrl: string;
 }
 
@@ -25,31 +34,91 @@ export interface UseJanusCallReturn {
   setMute: (muted: boolean) => void;
 }
 
+interface AudioContextRefs {
+  contextRef: React.RefObject<AudioContext | null>;
+  sourceRef: React.RefObject<MediaStreamAudioSourceNode | null>;
+  unlockAudioRef: React.RefObject<HTMLAudioElement | null>;
+}
+
+const stopAudioContext = (refs: AudioContextRefs) => {
+  try {
+    if (refs.unlockAudioRef.current) {
+      refs.unlockAudioRef.current.srcObject = null;
+      refs.unlockAudioRef.current = null;
+    }
+    if (refs.sourceRef.current) {
+      refs.sourceRef.current.disconnect();
+      refs.sourceRef.current = null;
+    }
+    if (refs.contextRef.current) {
+      refs.contextRef.current.close().catch(() => {});
+      refs.contextRef.current = null;
+    }
+  } catch (e) {
+    console.error(`${LOG_PREFIX} stopAudioContext:`, e);
+  }
+};
+
+const playStreamWithAudioContext = (
+  stream: MediaStream,
+  refs: AudioContextRefs,
+) => {
+  try {
+    const ctx = ensureAudioContext(refs.contextRef, refs.sourceRef);
+
+    createUnlockAudioElement(stream, refs.unlockAudioRef);
+
+    const audioStream = ctx.createMediaStreamSource(stream);
+    refs.sourceRef.current = audioStream;
+    audioStream.connect(ctx.destination);
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+  } catch (e) {
+    console.error(`${LOG_PREFIX} playStreamWithAudioContext:`, e);
+  }
+};
+
 export const useJanusCall = ({
   onEvent,
-  audioElementRef,
+  onMicDisconnected,
   janusWsUrl,
 }: UseJanusCallOptions): UseJanusCallReturn => {
   const handleRef = useRef<any>(null);
-  const internalAudioRef = useRef<HTMLAudioElement | null>(null);
-  const audioRef = audioElementRef ?? internalAudioRef;
+  const localTrackRef = useRef<MediaStreamTrack | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const unlockAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRefs = useMemo<AudioContextRefs>(
+    () => ({
+      contextRef: audioContextRef,
+      sourceRef: audioSourceRef,
+      unlockAudioRef,
+    }),
+    [],
+  );
+
+  const clearLocalTrack = useCallback(() => {
+    if (localTrackRef.current) {
+      localTrackRef.current.onended = null;
+      localTrackRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
-    const audioElement = audioRef.current;
     return () => {
       if (handleRef.current) {
         try {
           handleRef.current.detach();
-        } catch (error) {
-          console.error(`${LOG_PREFIX} Error detaching handle:`, error);
+        } catch (e) {
+          console.error(`${LOG_PREFIX} cleanup detach:`, e);
         }
         handleRef.current = null;
       }
-      if (audioElement) {
-        audioElement.srcObject = null;
-      }
+      clearLocalTrack();
+      stopAudioContext(audioRefs);
     };
-  }, [audioRef]);
+  }, [audioRefs, clearLocalTrack]);
 
   const emitEvent = useCallback(
     (event: JanusCallEvent) => {
@@ -72,14 +141,15 @@ export const useJanusCall = ({
       try {
         janusSession = await getJanusSession(janusWsUrl);
       } catch (error) {
-        const message = getErrorMessage(error);
+        const rawMessage = getErrorMessage(error);
+        console.error(`${LOG_PREFIX} getJanusSession:`, error);
         emitEvent({
           state: CallState.Failed,
           message:
-            message === 'Janus library not available'
-              ? message
-              : `Janus error: ${message}`,
-          error: message,
+            rawMessage === 'Janus library not available'
+              ? ERR_JANUS_NOT_LOADED
+              : ERR_JANUS_CONNECTION,
+          error: rawMessage,
         });
         return;
       }
@@ -114,27 +184,30 @@ export const useJanusCall = ({
                       message: callRequest,
                       jsep,
                       error: (error: any) => {
+                        console.error(`${LOG_PREFIX} call error:`, error);
                         emitEvent({
                           state: CallState.Failed,
-                          message: `Janus call error: ${error?.message || 'Unknown error'}`,
+                          message: ERR_CALL_FAILED,
                           error: error?.message || 'Unknown error',
                         });
                       },
                     });
                   },
                   error: (error: any) => {
+                    console.error(`${LOG_PREFIX} WebRTC offer error:`, error);
                     emitEvent({
                       state: CallState.Failed,
-                      message: `Failed to create WebRTC offer: ${error?.message || 'Unknown error'}`,
+                      message: ERR_JANUS_CONNECTION,
                       error: error?.message || 'Unknown error',
                     });
                   },
                 });
               },
               error: (error: any) => {
+                console.error(`${LOG_PREFIX} registration error:`, error);
                 emitEvent({
                   state: CallState.Failed,
-                  message: `Janus registration error: ${error?.message || 'Unknown error'}`,
+                  message: ERR_JANUS_CONNECTION,
                   error: error?.message || 'Unknown error',
                 });
               },
@@ -160,16 +233,23 @@ export const useJanusCall = ({
                   handleRef.current.handleRemoteJsep({ jsep: jsep });
                 }
 
+                const micTrack =
+                  handleRef.current?.webrtcStuff?.myStream?.getAudioTracks()[0];
+                if (micTrack) {
+                  localTrackRef.current = micTrack;
+                  micTrack.onended = () => {
+                    console.warn(`${LOG_PREFIX} Microphone track ended`);
+                    onMicDisconnected?.();
+                  };
+                }
+
                 emitEvent({
                   state: CallState.Connected,
                   message: `Call answered, Bridge ID: ${payload.bridgeId || 'N/A'}`,
                   bridgeId: payload.bridgeId,
                 });
               } else if (event === 'hangup') {
-                if (audioRef.current) {
-                  audioRef.current.srcObject = null;
-                }
-
+                stopAudioContext(audioRefs);
                 emitEvent({
                   state: CallState.Ended,
                   message: 'Call terminated',
@@ -182,20 +262,17 @@ export const useJanusCall = ({
               _mid: string,
               on: boolean,
             ) => {
-              if (on && track.kind === 'audio' && audioRef.current) {
+              if (on && track.kind === 'audio') {
                 const stream = new MediaStream([track]);
-                audioRef.current.srcObject = stream;
-                audioRef.current.play().catch((error) => {
-                  console.error(`${LOG_PREFIX} Error playing audio:`, error);
-                });
-              } else if (!on && audioRef.current) {
-                audioRef.current.srcObject = null;
+                playStreamWithAudioContext(stream, audioRefs);
+              } else if (!on) {
+                stopAudioContext(audioRefs);
               }
             };
 
             handleRef.current.webrtcState = (on: boolean) => {
-              if (!on && audioRef.current) {
-                audioRef.current.srcObject = null;
+              if (!on) {
+                stopAudioContext(audioRefs);
               }
             };
 
@@ -206,26 +283,30 @@ export const useJanusCall = ({
             handleRef.current.detached = () => {};
           },
           error: (error: any) => {
+            console.error(`${LOG_PREFIX} SIP plugin attach error:`, error);
             emitEvent({
               state: CallState.Failed,
-              message: `Failed to attach to Janus SIP plugin: ${error?.message || 'Unknown error'}`,
+              message: ERR_JANUS_CONNECTION,
               error: error?.message || 'Unknown error',
             });
           },
         });
       } catch (error) {
+        const rawMessage = getErrorMessage(error);
         console.error(`${LOG_PREFIX} Janus connection error:`, error);
         emitEvent({
           state: CallState.Failed,
-          message: `Janus connection error: ${getErrorMessage(error)}`,
-          error: getErrorMessage(error),
+          message: ERR_JANUS_CONNECTION,
+          error: rawMessage,
         });
       }
     },
-    [emitEvent, audioRef, janusWsUrl],
+    [emitEvent, audioRefs, janusWsUrl, onMicDisconnected],
   );
 
   const hangUp = useCallback(async () => {
+    clearLocalTrack();
+    const wasActive = !!handleRef.current;
     if (handleRef.current) {
       try {
         handleRef.current.hangup();
@@ -235,13 +316,11 @@ export const useJanusCall = ({
       }
       handleRef.current = null;
     }
-
-    if (audioRef.current) {
-      audioRef.current.srcObject = null;
+    stopAudioContext(audioRefs);
+    if (wasActive) {
+      emitEvent({ state: CallState.Ended, message: 'Call terminated' });
     }
-
-    emitEvent({ state: CallState.Ended, message: 'Call terminated' });
-  }, [audioRef, emitEvent]);
+  }, [audioRefs, clearLocalTrack, emitEvent]);
 
   const setMute = useCallback((muted: boolean) => {
     const handle = handleRef.current;
