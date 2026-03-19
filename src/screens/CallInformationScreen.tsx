@@ -62,7 +62,7 @@ const CallInformationScreen = ({
 
   const handleGoToProfile = () => {
     const webUrl = useWidgetStore.getState().config?.webBaseUrl ?? '';
-    window.open(`${webUrl}/customers/${customer.id}`, '_blank');
+    window.open(`${webUrl}/customers/${customer.id}`, '_blank', 'noopener');
   };
 
   return (

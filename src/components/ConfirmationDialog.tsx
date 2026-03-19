@@ -36,6 +36,7 @@ const ConfirmationDialog = ({
       onClose={onCancel}
       disablePortal
       disableScrollLock
+      disableEnforceFocus
       sx={{ position: 'absolute' }}
       slotProps={{
         backdrop: {

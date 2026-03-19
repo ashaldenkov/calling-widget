@@ -16,7 +16,12 @@ import { api } from '../api/api';
 import CallNotification from '../components/CallNotification';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import TrunkList from '../components/TrunkList';
-import { ERR_CALL_START, ERR_NO_TRUNKS, ERR_TRUNK_FETCH } from '../errors';
+import {
+  ERR_CALL_START,
+  ERR_CUSTOMER_IN_CALL,
+  ERR_NO_TRUNKS,
+  ERR_TRUNK_FETCH,
+} from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import { useWidgetStore } from '../stores/widgetStore';
 import { colors } from '../theme/colors';
@@ -60,6 +65,15 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
       }),
   });
 
+  const dialerId = data?.customerInfo.dialerId;
+
+  const { refetch: checkInCall } = useQuery<{ inCall: boolean }>({
+    queryKey: [`/customers/${dialerId}/in-call`],
+    enabled: false,
+    staleTime: 0,
+    gcTime: 0,
+  });
+
   useEffect(() => {
     if (data === undefined) return;
     if (data.trunks.length === 0) {
@@ -86,6 +100,12 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
     setIsStarting(true);
     setCallError(null);
     try {
+      const { data: inCallData } = await checkInCall();
+      if (inCallData?.inCall) {
+        setShowConfirmation(false);
+        setCallError(ERR_CUSTOMER_IN_CALL);
+        return;
+      }
       useWidgetStore.getState().setSelectedTrunkId(localSelectedId);
       const selectedTrunk = trunks.find((t) => t.id === localSelectedId);
       eventBus.emit(WidgetEvent.TrunkSelected, {
