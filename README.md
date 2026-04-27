@@ -22,7 +22,7 @@ src/
     CallNotification.tsx    # Info/error notification bar
     ConfirmationDialog.tsx  # Reusable confirmation dialog (used in SipTrunkScreen)
     StatusesList.tsx        # Infinite-scroll status picker (used in ChangeStatusScreen)
-    WidgetErrorBoundary.tsx # React error boundary for ErrorScreen
+    WidgetErrorBoundary.tsx # Error boundary (react-error-boundary under preact/compat)
   screens/
     index.ts
     SipTrunkScreen.tsx
@@ -42,6 +42,10 @@ src/
   theme/                    # MUI theme
   types/
 ```
+
+### Runtime stack
+
+The widget runs on **Preact 10** via `preact/compat`, wired up by `@preact/preset-vite`. The preset aliases `react`, `react-dom`, and the JSX runtime to Preact at bundle time, so first‑party code and third‑party libs (MUI, `@tanstack/react-query`, `react-error-boundary`) keep importing from `react` unchanged.
 
 ## Backend API contract
 

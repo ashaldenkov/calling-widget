@@ -16,7 +16,13 @@ import { getCountryData } from 'countries-list';
 import * as flags from 'country-flag-icons/react/3x2';
 
 import CallNotification from '../components/CallNotification';
-import { useWidgetStore } from '../stores/widgetStore';
+import {
+  setIsCollapsed,
+  setMicMuted,
+  setNotification,
+  setScreen,
+  widgetState,
+} from '../stores/widgetStore';
 import { colors } from '../theme/colors';
 import {
   chipBase,
@@ -29,26 +35,19 @@ import {
   truncateText,
 } from '../theme/styles';
 import type { CustomerData } from '../types/types';
-import { useCallStatus, useLocalTime } from '../utils';
+import { callStatus, muteNotification, useLocalTime } from '../utils';
 
 interface CallInformationScreenProps {
   customer: CustomerData;
-  muteNotification: { visible: boolean; countdown: number };
-  onCollapse: () => void;
   onEndCall: () => void;
-  onChangeStatus: () => void;
 }
 
 const CallInformationScreen = ({
   customer,
-  muteNotification,
-  onCollapse,
   onEndCall,
-  onChangeStatus,
 }: CallInformationScreenProps) => {
-  const { isMicMuted, setMicMuted, notification, setNotification } =
-    useWidgetStore();
-  const { label: callStatusLabel, duration: callDuration } = useCallStatus();
+  const { isMicMuted, notification } = widgetState;
+  const { label: callStatusLabel, duration: callDuration } = callStatus;
 
   const FlagIcon = flags[customer.country.toUpperCase() as keyof typeof flags];
   const localTime = useLocalTime(customer.country);
@@ -61,7 +60,7 @@ const CallInformationScreen = ({
   const countryName = getCountryData(customer.country).name;
 
   const handleGoToProfile = () => {
-    const webUrl = useWidgetStore.getState().config?.webBaseUrl ?? '';
+    const webUrl = widgetState.config?.webBaseUrl ?? '';
     window.open(`${webUrl}/customers/${customer.id}`, '_blank', 'noopener');
   };
 
@@ -71,7 +70,11 @@ const CallInformationScreen = ({
         <Typography variant='h6' sx={dialogTitle}>
           Call Information
         </Typography>
-        <IconButton onClick={onCollapse} size='small' sx={{ p: 0 }}>
+        <IconButton
+          onClick={() => setIsCollapsed(true)}
+          size='small'
+          sx={{ p: 0 }}
+        >
           <ArrowDropDown />
         </IconButton>
       </Box>
@@ -94,7 +97,7 @@ const CallInformationScreen = ({
         <Collapse in={!!notification} timeout={300} unmountOnExit>
           <CallNotification
             type='error'
-            message={notification!}
+            message={notification}
             onClose={() => setNotification(null)}
           />
         </Collapse>
@@ -190,7 +193,11 @@ const CallInformationScreen = ({
             ) : (
               <Typography variant='body3'>N/A</Typography>
             )}
-            <IconButton size='small' onClick={onChangeStatus} sx={{ p: '3px' }}>
+            <IconButton
+              size='small'
+              onClick={() => setScreen('changeStatus')}
+              sx={{ p: '3px' }}
+            >
               <EditOutlinedIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Box>

@@ -1,9 +1,16 @@
+import { effect } from '@preact/signals';
 import { getTimezonesForCountry } from 'countries-and-timezones';
 import type { TCountryCode } from 'countries-list';
+import { deepSignal } from 'deepsignal';
 import { useEffect, useMemo, useState } from 'react';
 
 import { eventBus, WidgetEvent } from './eventBus';
-import { useWidgetStore } from './stores/widgetStore';
+import {
+  setError,
+  setNotification,
+  setScreen,
+  widgetState,
+} from './stores/widgetStore';
 import { CallState } from './types/types';
 
 export const getErrorMessage = (
@@ -13,11 +20,10 @@ export const getErrorMessage = (
 
 export const handleWidgetError = (message: string, error?: unknown): void => {
   console.error('[Widget]', error ?? message);
-  const store = useWidgetStore.getState();
-  if (store.screen !== 'error') {
-    store.setNotification(null);
-    store.setError(message);
-    store.setScreen('error');
+  if (widgetState.screen !== 'error') {
+    setNotification(null);
+    setError(message);
+    setScreen('error');
     eventBus.emit(WidgetEvent.Error, { message });
   }
 };
@@ -92,65 +98,62 @@ export const getCallStateLabel = (callState: CallState): string => {
 
 export const MUTE_NOTIFICATION_DURATION = 5;
 
-export const useMuteNotification = () => {
-  const { isMicMuted } = useWidgetStore();
-  const [visible, setVisible] = useState(false);
-  const [countdown, setCountdown] = useState(MUTE_NOTIFICATION_DURATION);
+export const muteNotification = deepSignal({
+  visible: false,
+  countdown: MUTE_NOTIFICATION_DURATION,
+});
 
-  useEffect(() => {
-    if (!isMicMuted) {
-      setVisible(false);
-      return;
+effect(() => {
+  const muted = widgetState.isMicMuted;
+  if (!muted) {
+    muteNotification.visible = false;
+    return;
+  }
+  let remaining = MUTE_NOTIFICATION_DURATION;
+  muteNotification.countdown = remaining;
+  muteNotification.visible = true;
+
+  const id = setInterval(() => {
+    remaining -= 1;
+    muteNotification.countdown = remaining;
+    if (remaining <= 0) {
+      clearInterval(id);
+      muteNotification.visible = false;
     }
+  }, 1000);
+  return () => clearInterval(id);
+});
 
-    setVisible(true);
-    let remaining = MUTE_NOTIFICATION_DURATION;
-    setCountdown(remaining);
+export const callStatus = deepSignal<{
+  label: string;
+  duration: string | null;
+}>({
+  label: getCallStateLabel(CallState.Idle),
+  duration: null,
+});
 
-    const interval = setInterval(() => {
-      remaining -= 1;
-      setCountdown(remaining);
-      if (remaining <= 0) {
-        clearInterval(interval);
-        setVisible(false);
-      }
-    }, 1000);
+effect(() => {
+  const callState = widgetState.callState;
+  const start = widgetState.startCallTime;
 
-    return () => clearInterval(interval);
-  }, [isMicMuted]);
+  callStatus.label = getCallStateLabel(callState);
 
-  return { visible, countdown };
-};
+  const isActive =
+    callState !== CallState.Idle &&
+    callState !== CallState.Ended &&
+    callState !== CallState.Failed;
 
-export const useCallStatus = () => {
-  const { callState, startCallTime } = useWidgetStore();
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  if (!isActive || !start) {
+    callStatus.duration = null;
+    return;
+  }
 
-  const isCallActive = useMemo(
-    () =>
-      callState !== CallState.Idle &&
-      callState !== CallState.Ended &&
-      callState !== CallState.Failed,
-    [callState],
-  );
-
-  useEffect(() => {
-    if (!isCallActive || !startCallTime) {
-      setElapsedSeconds(0);
-      return;
-    }
-
-    setElapsedSeconds(Math.floor((Date.now() - startCallTime) / 1000));
-
-    const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startCallTime) / 1000));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isCallActive, startCallTime]);
-
-  const label = getCallStateLabel(callState);
-  const duration = startCallTime ? formatDuration(elapsedSeconds) : null;
-
-  return { label, duration };
-};
+  const tick = () => {
+    callStatus.duration = formatDuration(
+      Math.floor((Date.now() - start) / 1000),
+    );
+  };
+  tick();
+  const id = setInterval(tick, 1000);
+  return () => clearInterval(id);
+});

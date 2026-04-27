@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { effect } from '@preact/signals';
+import { deepSignal } from 'deepsignal';
 
 import { eventBus, WidgetEvent } from '../eventBus';
 import {
@@ -13,26 +13,7 @@ import {
 } from '../types/types';
 import type { BrowserWarning } from '../utils/browserDetection';
 
-interface WidgetActions {
-  setConfig: (config: CallWidgetConfig) => void;
-  updateAuthToken: (token: string) => void;
-  setCallParams: (params: CallParams) => void;
-  setScreen: (screen: WidgetScreen) => void;
-  setCallState: (state: CallState) => void;
-  setStartCallTime: (time: number | null) => void;
-  setError: (error: string | null) => void;
-  setNotification: (notification: string | null) => void;
-  setMicMuted: (muted: boolean) => void;
-  setCustomerData: (data: CustomerData | null) => void;
-  setSelectedTrunkId: (id: string | null) => void;
-  setStatusConfirmedDuringCall: (confirmed: boolean) => void;
-  setIsCollapsed: (v: boolean) => void;
-  setCompatibilityWarnings: (warnings: BrowserWarning[]) => void;
-  endCall: () => void;
-  resetToIdle: () => void;
-}
-
-export type WidgetStore = WidgetState & WidgetActions;
+const STORAGE_KEY = 'CallWidgetStore';
 
 type PersistedWidgetState = Pick<
   WidgetState,
@@ -67,107 +48,152 @@ const initialState: WidgetState = {
   compatibilityWarnings: [],
 };
 
-export const useWidgetStore = create<WidgetStore>()(
-  persist(
-    (set) => ({
-      ...initialState,
+function loadPersisted(): Partial<PersistedWidgetState> {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as
+      | Partial<PersistedWidgetState>
+      | { state?: Partial<PersistedWidgetState> };
+    if (parsed && typeof parsed === 'object' && 'state' in parsed) {
+      return parsed.state ?? {};
+    }
+    return parsed as Partial<PersistedWidgetState>;
+  } catch {
+    return {};
+  }
+}
 
-      setConfig: (config) => set({ config }),
+function mergePersisted(
+  stored: Partial<PersistedWidgetState>,
+): Partial<WidgetState> {
+  if (stored.callState && ActiveCallStates.has(stored.callState)) {
+    return {
+      ...stored,
+      callState: CallState.Idle, // triggers auto-restart useEffect in useCall
+      screen: 'calling',
+      startCallTime: null,
+    };
+  }
 
-      updateAuthToken: (token) =>
-        set((s) => {
-          if (!s.config || s.config.authToken === token) return {};
-          return { config: { ...s.config, authToken: token } };
-        }),
+  if (
+    stored.screen === 'error' ||
+    stored.screen === 'sipTrunk' ||
+    stored.screen === 'compatibilityWarning'
+  ) {
+    return { ...stored, screen: 'idle' };
+  }
 
-      setCallParams: (params: CallParams) => {
-        set({
-          clientId: params.clientId,
-          phoneNumber: params.phoneNumber,
-          agentId: params.agentId,
-        });
-      },
+  return stored;
+}
 
-      setScreen: (screen) =>
-        set((s) => {
-          if (s.screen === 'idle' && screen !== 'idle') {
-            eventBus.emit(WidgetEvent.WidgetOpened);
-          }
-          return { screen };
-        }),
+const hydrated = mergePersisted(loadPersisted());
 
-      setCallState: (callState) => set({ callState }),
+export const widgetState = deepSignal<WidgetState>({
+  ...initialState,
+  ...hydrated,
+});
 
-      setStartCallTime: (startCallTime) => set({ startCallTime }),
+// Persistence
+effect(() => {
+  const snapshot: PersistedWidgetState = {
+    screen: widgetState.screen,
+    callState: widgetState.callState,
+    clientId: widgetState.clientId,
+    phoneNumber: widgetState.phoneNumber,
+    agentId: widgetState.agentId,
+    customerData: widgetState.customerData,
+    startCallTime: widgetState.startCallTime,
+    selectedTrunkId: widgetState.selectedTrunkId,
+    isMicMuted: widgetState.isMicMuted,
+    statusConfirmedDuringCall: widgetState.statusConfirmedDuringCall,
+    isCollapsed: widgetState.isCollapsed,
+  };
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // ignore
+  }
+});
 
-      setError: (error) => set({ error }),
+// Actions
 
-      setNotification: (notification) => set({ notification }),
+export const setConfig = (config: CallWidgetConfig): void => {
+  widgetState.config = config;
+};
 
-      setMicMuted: (muted) => set({ isMicMuted: muted }),
+export const updateAuthToken = (token: string): void => {
+  const current = widgetState.config;
+  if (!current || current.authToken === token) return;
+  widgetState.config = { ...current, authToken: token };
+};
 
-      setCustomerData: (customerData) => set({ customerData }),
+export const setCallParams = (params: CallParams): void => {
+  widgetState.clientId = params.clientId;
+  widgetState.phoneNumber = params.phoneNumber;
+  widgetState.agentId = params.agentId;
+};
 
-      setSelectedTrunkId: (selectedTrunkId) => set({ selectedTrunkId }),
+export const setScreen = (screen: WidgetScreen): void => {
+  const prev = widgetState.screen;
+  widgetState.screen = screen;
+  if (prev === 'idle' && screen !== 'idle') {
+    eventBus.emit(WidgetEvent.WidgetOpened);
+  }
+};
 
-      setStatusConfirmedDuringCall: (statusConfirmedDuringCall) =>
-        set({ statusConfirmedDuringCall }),
+export const setCallState = (callState: CallState): void => {
+  widgetState.callState = callState;
+};
 
-      setIsCollapsed: (isCollapsed) => set({ isCollapsed }),
+export const setStartCallTime = (time: number | null): void => {
+  widgetState.startCallTime = time;
+};
 
-      setCompatibilityWarnings: (compatibilityWarnings) =>
-        set({ compatibilityWarnings }),
+export const setError = (error: string | null): void => {
+  widgetState.error = error;
+};
 
-      endCall: () => set({ callState: CallState.Ended, startCallTime: null }),
+export const setNotification = (notification: string | null): void => {
+  widgetState.notification = notification;
+};
 
-      resetToIdle: () =>
-        set((s) => {
-          if (s.screen !== 'idle') {
-            eventBus.emit(WidgetEvent.WidgetDismissed);
-          }
-          return { ...initialState, config: s.config };
-        }),
-    }),
-    {
-      name: 'CallWidgetStore',
-      storage: createJSONStorage(() => sessionStorage),
-      partialize: (state): PersistedWidgetState => ({
-        screen: state.screen,
-        callState: state.callState,
-        clientId: state.clientId,
-        phoneNumber: state.phoneNumber,
-        agentId: state.agentId,
-        customerData: state.customerData,
-        startCallTime: state.startCallTime,
-        selectedTrunkId: state.selectedTrunkId,
-        isMicMuted: state.isMicMuted,
-        statusConfirmedDuringCall: state.statusConfirmedDuringCall,
-        isCollapsed: state.isCollapsed,
-      }),
-      merge: (persisted, current) => {
-        const stored = persisted as Partial<PersistedWidgetState>;
+export const setMicMuted = (muted: boolean): void => {
+  if (widgetState.isMicMuted === muted) return;
+  widgetState.isMicMuted = muted;
+  eventBus.emit(WidgetEvent.MicToggled, { muted });
+};
 
-        if (stored.callState && ActiveCallStates.has(stored.callState)) {
-          return {
-            ...current,
-            ...stored,
-            callState: CallState.Idle, // triggers auto-restart useEffect in useCall
-            screen: 'calling',
-            startCallTime: null,
-          };
-        }
+export const setCustomerData = (data: CustomerData | null): void => {
+  widgetState.customerData = data;
+};
 
-        // Transient screens that have no meaning after a reload
-        if (
-          stored.screen === 'error' ||
-          stored.screen === 'sipTrunk' ||
-          stored.screen === 'compatibilityWarning'
-        ) {
-          return { ...current, ...stored, screen: 'idle' };
-        }
+export const setSelectedTrunkId = (id: string | null): void => {
+  widgetState.selectedTrunkId = id;
+};
 
-        return { ...current, ...stored };
-      },
-    },
-  ),
-);
+export const setStatusConfirmedDuringCall = (confirmed: boolean): void => {
+  widgetState.statusConfirmedDuringCall = confirmed;
+};
+
+export const setIsCollapsed = (v: boolean): void => {
+  widgetState.isCollapsed = v;
+};
+
+export const setCompatibilityWarnings = (warnings: BrowserWarning[]): void => {
+  widgetState.compatibilityWarnings = warnings;
+};
+
+export const endCall = (): void => {
+  widgetState.callState = CallState.Ended;
+  widgetState.startCallTime = null;
+};
+
+export const resetToIdle = (): void => {
+  const wasOpen = widgetState.screen !== 'idle';
+  const keepConfig = widgetState.config;
+  Object.assign(widgetState, initialState, { config: keepConfig });
+  if (wasOpen) {
+    eventBus.emit(WidgetEvent.WidgetDismissed);
+  }
+};

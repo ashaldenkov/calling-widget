@@ -7,12 +7,12 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: defaultQueryFn,
       retry: 2,
-      retryDelay: 3000,
+      retryDelay: 2000,
       staleTime: 1000 * 60 * 5,
     },
     mutations: {
       retry: 2,
-      retryDelay: 3000,
+      retryDelay: 2000,
     },
   },
 });

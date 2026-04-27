@@ -5,7 +5,15 @@ import { queryClient } from './api/queryClient';
 import { App } from './App';
 import { eventBus, WidgetEvent } from './eventBus';
 import { destroyJanusSession } from './stores/janusStore';
-import { useWidgetStore } from './stores/widgetStore';
+import {
+  resetToIdle,
+  setCallParams,
+  setCompatibilityWarnings,
+  setConfig,
+  setScreen,
+  updateAuthToken,
+  widgetState,
+} from './stores/widgetStore';
 import {
   ActiveCallStates,
   type CallParams,
@@ -55,64 +63,62 @@ function ensureMount(): void {
 }
 
 function handleInit(config: CallWidgetConfig) {
-  const state = useWidgetStore.getState();
-  if (ActiveCallStates.has(state.callState)) {
+  if (ActiveCallStates.has(widgetState.callState)) {
     console.warn(`${LOG_PREFIX} Cannot re-initialize during active call.`);
     return;
   }
   ensureMount();
-  useWidgetStore.getState().setConfig(config);
+  setConfig(config);
 
   eventBus.emit(WidgetEvent.Initialized);
 }
 
 function handleCall(params: CallParams) {
-  const state = useWidgetStore.getState();
-
-  if (!root || !state.config) {
+  if (!root || !widgetState.config) {
     console.error(`${LOG_PREFIX} Widget not initialized. Emit "init" first.`);
     eventBus.emit(WidgetEvent.Error, { message: 'Widget not initialized' });
     return;
   }
 
-  if (ActiveCallStates.has(state.callState) || state.screen === 'changeStatus') {
+  if (
+    ActiveCallStates.has(widgetState.callState) ||
+    widgetState.screen === 'changeStatus'
+  ) {
     console.warn(
-      `${LOG_PREFIX} Widget is busy (screen: ${state.screen}), ignoring call.`,
+      `${LOG_PREFIX} Widget is busy (screen: ${widgetState.screen}), ignoring call.`,
     );
     return;
   }
 
-  if (state.screen !== 'idle') {
+  if (widgetState.screen !== 'idle') {
     destroyJanusSession();
     queryClient.clear();
-    state.resetToIdle();
+    resetToIdle();
   }
 
-  useWidgetStore.getState().setCallParams(params);
+  setCallParams(params);
 
   const warnings = detectBrowserWarnings();
-  const freshState = useWidgetStore.getState();
   if (warnings.length === 0 || sessionStorage.getItem('cw-compat-warned')) {
-    freshState.setScreen('sipTrunk');
+    setScreen('sipTrunk');
   } else {
-    freshState.setCompatibilityWarnings(warnings);
-    freshState.setScreen('compatibilityWarning');
+    setCompatibilityWarnings(warnings);
+    setScreen('compatibilityWarning');
   }
 }
 
 function handleUpdateToken({ token }: { token: string }) {
-  const state = useWidgetStore.getState();
-  if (!state.config) {
+  if (!widgetState.config) {
     console.warn(`${LOG_PREFIX} Cannot update token: widget not initialized.`);
     return;
   }
-  state.updateAuthToken(token);
+  updateAuthToken(token);
 }
 
 function handleDismiss() {
   destroyJanusSession();
   queryClient.clear();
-  useWidgetStore.getState().resetToIdle();
+  resetToIdle();
 }
 
 eventBus.on(WidgetEvent.Init, handleInit);

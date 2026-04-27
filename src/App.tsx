@@ -28,9 +28,9 @@ export const App = ({ shadowRoot }: AppProps) => {
     () =>
       createTheme(createMuiTheme('light'), {
         components: {
-          MuiPopover: { defaultProps: { container: shadowRoot } },
-          MuiPopper: { defaultProps: { container: shadowRoot } },
-          MuiModal: { defaultProps: { container: shadowRoot } },
+          MuiPopover: { defaultProps: { container: () => shadowRoot } },
+          MuiPopper: { defaultProps: { container: () => shadowRoot } },
+          MuiModal: { defaultProps: { container: () => shadowRoot } },
         },
       }),
     [shadowRoot],

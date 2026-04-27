@@ -8,53 +8,56 @@ import {
   ERR_MIC_PERMISSION,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
-import { useWidgetStore } from '../stores/widgetStore';
+import {
+  resetToIdle,
+  setCallState,
+  setNotification,
+  setScreen,
+  setStartCallTime,
+  widgetState,
+} from '../stores/widgetStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
 import { handleWidgetError } from '../utils';
 
 import { type JanusCallEvent, useJanusCall } from './useJanusCall';
 
 export const useCall = () => {
-  const config = useWidgetStore((s) => s.config);
-  const screen = useWidgetStore((s) => s.screen);
-  const callState = useWidgetStore((s) => s.callState);
-  const customerData = useWidgetStore((s) => s.customerData);
-  const selectedTrunkId = useWidgetStore((s) => s.selectedTrunkId);
+  const { config, screen, callState, customerData, selectedTrunkId } =
+    widgetState;
 
   const handleEvent = useCallback((event: JanusCallEvent) => {
-    const store = useWidgetStore.getState();
     const emitStateChange = (state: CallState) =>
       eventBus.emit(WidgetEvent.CallStateChange, {
         state,
-        clientId: store.clientId ?? undefined,
+        clientId: widgetState.clientId ?? undefined,
       });
 
     switch (event.state) {
       case CallState.Ringing:
-        store.setCallState(CallState.Ringing);
+        setCallState(CallState.Ringing);
         emitStateChange(CallState.Ringing);
         break;
       case CallState.Connected:
-        store.setCallState(CallState.Connected);
-        store.setStartCallTime(Date.now());
+        setCallState(CallState.Connected);
+        setStartCallTime(Date.now());
         emitStateChange(CallState.Connected);
         break;
       case CallState.Failed: {
-        store.setCallState(CallState.Failed);
+        setCallState(CallState.Failed);
         const msg = event.message || ERR_CALL_FAILED;
-        store.setNotification(msg);
+        setNotification(msg);
         emitStateChange(CallState.Failed);
         eventBus.emit(WidgetEvent.Error, { message: msg });
         break;
       }
       case CallState.Ended: {
-        store.setCallState(CallState.Ended);
-        store.setStartCallTime(null);
+        setCallState(CallState.Ended);
+        setStartCallTime(null);
         emitStateChange(CallState.Ended);
-        if (store.statusConfirmedDuringCall) {
-          store.resetToIdle();
+        if (widgetState.statusConfirmedDuringCall) {
+          resetToIdle();
         } else {
-          store.setScreen('changeStatus');
+          setScreen('changeStatus');
         }
         break;
       }
@@ -62,7 +65,7 @@ export const useCall = () => {
   }, []);
 
   const handleMicDisconnected = useCallback(() => {
-    useWidgetStore.getState().setNotification(ERR_MIC_DISCONNECTED);
+    setNotification(ERR_MIC_DISCONNECTED);
     eventBus.emit(WidgetEvent.Error, { message: ERR_MIC_DISCONNECTED });
   }, []);
 
@@ -85,8 +88,7 @@ export const useCall = () => {
 
   const startCallWithTrunk = useCallback(
     async (trunkId: string) => {
-      const store = useWidgetStore.getState();
-      const { customerData } = store;
+      const { customerData } = widgetState;
 
       if (!customerData) {
         handleWidgetError(ERR_CUSTOMER_DATA);
@@ -98,11 +100,11 @@ export const useCall = () => {
         { method: 'POST', data: { trunkId: Number(trunkId) } },
       );
 
-      store.setScreen('calling');
-      store.setCallState(CallState.Calling);
+      setScreen('calling');
+      setCallState(CallState.Calling);
       eventBus.emit(WidgetEvent.CallStateChange, {
         state: CallState.Calling,
-        clientId: store.clientId ?? undefined,
+        clientId: widgetState.clientId ?? undefined,
       });
 
       await makeCall(response);

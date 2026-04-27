@@ -1,5 +1,5 @@
 import { mapHttpError } from '../errors';
-import { useWidgetStore } from '../stores/widgetStore';
+import { widgetState } from '../stores/widgetStore';
 
 interface RequestConfig {
   method?: string;
@@ -12,7 +12,7 @@ export async function api<T>(
   path: string,
   { method = 'GET', data, params, signal }: RequestConfig = {},
 ): Promise<T> {
-  const config = useWidgetStore.getState().config;
+  const config = widgetState.config;
   if (!config) throw new Error('Widget not initialized');
 
   const url = new URL(config.apiBaseUrl + path);
