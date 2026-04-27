@@ -23,7 +23,11 @@ import {
   ERR_TRUNK_FETCH,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
-import { useWidgetStore } from '../stores/widgetStore';
+import {
+  setCustomerData,
+  setSelectedTrunkId,
+  widgetState,
+} from '../stores/widgetStore';
 import { colors } from '../theme/colors';
 import {
   dialogTitlePadding,
@@ -39,10 +43,7 @@ interface SipTrunkScreenProps {
 }
 
 const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
-  const agentId = useWidgetStore((s) => s.agentId);
-  const clientId = useWidgetStore((s) => s.clientId);
-  const phoneNumber = useWidgetStore((s) => s.phoneNumber);
-  const selectedTrunkId = useWidgetStore((s) => s.selectedTrunkId);
+  const { agentId, clientId, phoneNumber, selectedTrunkId } = widgetState;
 
   const [localSelectedId, setLocalSelectedId] = useState<string | null>(
     selectedTrunkId,
@@ -80,8 +81,8 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
       handleWidgetError(ERR_NO_TRUNKS);
       return;
     }
-    useWidgetStore.getState().setCustomerData(data.customerInfo);
-    if (!useWidgetStore.getState().selectedTrunkId) {
+    setCustomerData(data.customerInfo);
+    if (!widgetState.selectedTrunkId) {
       setLocalSelectedId(data.trunks[0].id);
     }
   }, [data]);
@@ -106,7 +107,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
         setCallError(ERR_CUSTOMER_IN_CALL);
         return;
       }
-      useWidgetStore.getState().setSelectedTrunkId(localSelectedId);
+      setSelectedTrunkId(localSelectedId);
       const selectedTrunk = trunks.find((t) => t.id === localSelectedId);
       eventBus.emit(WidgetEvent.TrunkSelected, {
         trunkId: localSelectedId,

@@ -5,13 +5,13 @@ import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { ERR_RENDER } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import ErrorScreen from '../screens/ErrorScreen';
-import { useWidgetStore } from '../stores/widgetStore';
+import { resetToIdle } from '../stores/widgetStore';
 import { elevatedPaperShadow } from '../theme';
 import { getErrorMessage } from '../utils';
 
 const ErrorFallback = ({ resetErrorBoundary }: FallbackProps) => {
   const handleClose = () => {
-    useWidgetStore.getState().resetToIdle();
+    resetToIdle();
     eventBus.emit(WidgetEvent.WidgetDismissed);
     resetErrorBoundary();
   };

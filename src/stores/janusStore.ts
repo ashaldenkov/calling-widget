@@ -1,5 +1,5 @@
+import { deepSignal } from 'deepsignal';
 import Janus from 'janus-gateway';
-import { useSyncExternalStore } from 'react';
 import adapter from 'webrtc-adapter';
 
 import { getErrorMessage } from '../utils';
@@ -20,23 +20,10 @@ const initialState: JanusStoreState = {
   error: null,
 };
 
-let state: JanusStoreState = { ...initialState };
-const listeners = new Set<() => void>();
+export const janusState = deepSignal<JanusStoreState>({ ...initialState });
+
 let initPromise: Promise<JanusSession> | null = null;
 let janusLibInitialized = false;
-
-function emitChange() {
-  listeners.forEach((listener) => listener());
-}
-
-function getSnapshot(): JanusStoreState {
-  return state;
-}
-
-export function subscribe(callback: () => void): () => void {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
-}
 
 function ensureJanusLib(): Promise<void> {
   if (janusLibInitialized) return Promise.resolve();
@@ -45,9 +32,7 @@ function ensureJanusLib(): Promise<void> {
   }
   return new Promise((resolve, reject) => {
     try {
-      const dependencies = (Janus as any).useDefaultDependencies({
-        adapter,
-      });
+      const dependencies = (Janus as any).useDefaultDependencies({ adapter });
       Janus.init({
         dependencies,
         callback: () => {
@@ -62,8 +47,8 @@ function ensureJanusLib(): Promise<void> {
 }
 
 export function getJanusSession(serverUrl: string): Promise<JanusSession> {
-  if (state.session) {
-    return Promise.resolve(state.session);
+  if (janusState.session) {
+    return Promise.resolve(janusState.session);
   }
   // for concurrent requests
   if (initPromise) {
@@ -71,8 +56,9 @@ export function getJanusSession(serverUrl: string): Promise<JanusSession> {
   }
 
   initPromise = (async (): Promise<JanusSession> => {
-    state = { status: 'initializing', session: null, error: null };
-    emitChange();
+    janusState.status = 'initializing';
+    janusState.session = null;
+    janusState.error = null;
 
     try {
       await ensureJanusLib();
@@ -81,32 +67,27 @@ export function getJanusSession(serverUrl: string): Promise<JanusSession> {
         const session = new Janus({
           server: serverUrl,
           success: () => {
-            state = { status: 'ready', session, error: null };
-            emitChange();
+            janusState.status = 'ready';
+            janusState.session = session;
+            janusState.error = null;
             resolve(session);
           },
           error: (error: any) => {
             const message = error?.message ?? 'Unknown error';
-            state = {
-              status: 'error',
-              session: null,
-              error: message,
-            };
+            janusState.status = 'error';
+            janusState.session = null;
+            janusState.error = message;
             initPromise = null;
-            emitChange();
             reject(new Error(message));
           },
         });
       });
     } catch (error) {
       const message = getErrorMessage(error);
-      state = {
-        status: 'error',
-        session: null,
-        error: message,
-      };
+      janusState.status = 'error';
+      janusState.session = null;
+      janusState.error = message;
       initPromise = null;
-      emitChange();
       throw error;
     }
   })();
@@ -115,19 +96,15 @@ export function getJanusSession(serverUrl: string): Promise<JanusSession> {
 }
 
 export function destroyJanusSession(): void {
-  if (state.session) {
+  if (janusState.session) {
     try {
-      state.session.destroy();
+      janusState.session.destroy();
     } catch (error) {
       console.error(`${LOG_PREFIX} Error destroying session:`, error);
     }
-    state.session = null;
   }
-  state = { ...initialState };
+  janusState.status = initialState.status;
+  janusState.session = null;
+  janusState.error = null;
   initPromise = null;
-  emitChange();
-}
-
-export function useJanusStore(): JanusStoreState {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

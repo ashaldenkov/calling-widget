@@ -18,7 +18,7 @@ import { api } from '../api/api';
 import CallNotification from '../components/CallNotification';
 import StatusesList from '../components/StatusesList';
 import { ERR_STATUS_SAVE } from '../errors';
-import { useWidgetStore } from '../stores/widgetStore';
+import { widgetState } from '../stores/widgetStore';
 import { colors } from '../theme/colors';
 import {
   dialogTitlePadding,
@@ -55,7 +55,7 @@ const commentTextFieldSx = {
 const MAX_COMMENT_LENGTH = 500;
 
 const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
-  const customerData = useWidgetStore((s) => s.customerData);
+  const { customerData } = widgetState;
 
   const currentStatus = customerData?.status ?? null;
 

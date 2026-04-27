@@ -1,10 +1,10 @@
-import react from '@vitejs/plugin-react';
+import preact from '@preact/preset-vite';
 import { defineConfig } from 'vite';
 
 import pkg from './package.json' with { type: 'json' };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [preact()],
   server: {
     port: 5174,
     cors: true,

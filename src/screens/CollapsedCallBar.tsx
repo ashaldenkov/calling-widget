@@ -14,7 +14,12 @@ import { getCountryData } from 'countries-list';
 import * as flags from 'country-flag-icons/react/3x2';
 
 import CallNotification from '../components/CallNotification';
-import { useWidgetStore } from '../stores/widgetStore';
+import {
+  setIsCollapsed,
+  setMicMuted,
+  setNotification,
+  widgetState,
+} from '../stores/widgetStore';
 import { colors } from '../theme/colors';
 import {
   flexBetweenCenter,
@@ -23,23 +28,16 @@ import {
   truncateText,
 } from '../theme/styles';
 import type { CustomerData } from '../types/types';
-import { useCallStatus, useLocalTime, useMuteNotification } from '../utils';
+import { callStatus, muteNotification, useLocalTime } from '../utils';
 
 interface CollapsedCallBarProps {
   customer: CustomerData;
-  onExpand: () => void;
   onEndCall: () => void;
 }
 
-const CollapsedCallBar = ({
-  customer,
-  onExpand,
-  onEndCall,
-}: CollapsedCallBarProps) => {
-  const { isMicMuted, setMicMuted, notification, setNotification } =
-    useWidgetStore();
-  const muteNotification = useMuteNotification();
-  const { label: callStatusLabel, duration: callDuration } = useCallStatus();
+const CollapsedCallBar = ({ customer, onEndCall }: CollapsedCallBarProps) => {
+  const { isMicMuted, notification } = widgetState;
+  const { label: callStatusLabel, duration: callDuration } = callStatus;
 
   const FlagIcon = flags[customer.country.toUpperCase() as keyof typeof flags];
   const localTime = useLocalTime(customer.country);
@@ -71,7 +69,7 @@ const CollapsedCallBar = ({
       <Collapse in={!!notification} timeout={300} unmountOnExit>
         <CallNotification
           type='error'
-          message={notification!}
+          message={notification}
           onClose={() => setNotification(null)}
         />
       </Collapse>
@@ -194,7 +192,11 @@ const CollapsedCallBar = ({
             </IconButton>
           </Tooltip>
           <Divider orientation='vertical' flexItem sx={{ height: 32 }} />
-          <IconButton onClick={onExpand} size='small' sx={{ p: 0 }}>
+          <IconButton
+            onClick={() => setIsCollapsed(false)}
+            size='small'
+            sx={{ p: 0 }}
+          >
             <ArrowDropUp sx={{ color: colors.teal500 }} />
           </IconButton>
         </Box>
