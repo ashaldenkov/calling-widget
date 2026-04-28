@@ -1,6 +1,6 @@
 import { Collapse, Paper } from '@mui/material';
-import { useMutation } from '@tanstack/react-query';
-import { useCallback, useEffect } from 'react';
+import { useMutation } from '@tanstack/preact-query';
+import { useCallback, useEffect } from 'preact/hooks';
 
 import { api } from '../api/api';
 import { eventBus, WidgetEvent } from '../eventBus';

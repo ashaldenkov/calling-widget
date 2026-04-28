@@ -22,14 +22,6 @@ export const truncateText = {
   whiteSpace: 'nowrap',
 } as const;
 
-export const dialogActions = {
-  px: '24px',
-  py: '16px',
-  gap: '8px',
-  fontSize: '14px',
-  fontWeight: 500,
-} as const;
-
 export const dialogTitle = {
   fontSize: '20px',
   lineHeight: 1.5,

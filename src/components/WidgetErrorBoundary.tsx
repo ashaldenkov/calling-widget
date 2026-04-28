@@ -1,6 +1,5 @@
 import { Paper } from '@mui/material';
-import { type ReactNode } from 'react';
-import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
+import { Component, type ComponentChildren } from 'preact';
 
 import { ERR_RENDER } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
@@ -9,42 +8,51 @@ import { resetToIdle } from '../stores/widgetStore';
 import { elevatedPaperShadow } from '../theme';
 import { getErrorMessage } from '../utils';
 
-const ErrorFallback = ({ resetErrorBoundary }: FallbackProps) => {
-  const handleClose = () => {
+interface State {
+  error: Error | null;
+}
+
+interface Props {
+  children: ComponentChildren;
+}
+
+export class WidgetErrorBoundary extends Component<Props, State> {
+  state: State = { error: null };
+
+  static getDerivedStateFromError(error: Error): State {
+    return { error };
+  }
+
+  componentDidCatch(error: Error): void {
+    console.error('[CallWidget] Render error:', error);
+    const message = getErrorMessage(error, ERR_RENDER);
+    eventBus.emit(WidgetEvent.Error, { message });
+  }
+
+  private handleClose = (): void => {
     resetToIdle();
     eventBus.emit(WidgetEvent.WidgetDismissed);
-    resetErrorBoundary();
+    this.setState({ error: null });
   };
 
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        width: 500,
-        overflow: 'hidden',
-        pointerEvents: 'auto',
-        ...elevatedPaperShadow,
-      }}
-    >
-      <ErrorScreen onClose={handleClose} />
-    </Paper>
-  );
-};
+  render() {
+    if (!this.state.error) return this.props.children;
 
-const handleError = (
-  error: unknown,
-  info: { componentStack?: string | null },
-) => {
-  console.error('[CallWidget] Render error:', error, info);
-  const message = getErrorMessage(error, ERR_RENDER);
-  eventBus.emit(WidgetEvent.Error, { message });
-};
-
-export const WidgetErrorBoundary = ({ children }: { children: ReactNode }) => (
-  <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
-    {children}
-  </ErrorBoundary>
-);
+    return (
+      <Paper
+        elevation={0}
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          width: 500,
+          overflow: 'hidden',
+          pointerEvents: 'auto',
+          ...elevatedPaperShadow,
+        }}
+      >
+        <ErrorScreen onClose={this.handleClose} />
+      </Paper>
+    );
+  }
+}

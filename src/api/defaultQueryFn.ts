@@ -1,4 +1,4 @@
-import type { QueryFunctionContext } from '@tanstack/react-query';
+import type { QueryFunctionContext } from '@tanstack/preact-query';
 
 import { api } from './api';
 

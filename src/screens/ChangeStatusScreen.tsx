@@ -11,8 +11,8 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/preact-query';
+import { useMemo, useState } from 'preact/hooks';
 
 import { api } from '../api/api';
 import CallNotification from '../components/CallNotification';
@@ -144,7 +144,7 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
           fullWidth
           placeholder='Search'
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery(e.currentTarget.value)}
           slotProps={{
             input: {
               startAdornment: (
@@ -196,7 +196,7 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
             label='Comment'
             placeholder='Type your comment'
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={(e) => setComment(e.currentTarget.value)}
             error={isCommentTooLong}
             helperText={isCommentTooLong ? 'Too long ' : undefined}
             multiline

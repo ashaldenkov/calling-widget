@@ -1,8 +1,8 @@
 import createCache from '@emotion/cache';
 import { CacheProvider } from '@emotion/react';
 import { createTheme, ThemeProvider } from '@mui/material';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { QueryClientProvider } from '@tanstack/preact-query';
+import { useMemo } from 'preact/hooks';
 
 import { queryClient } from './api/queryClient';
 import { ExternalCallWidget } from './components/ExternalCallWidget';

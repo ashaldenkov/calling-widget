@@ -2,7 +2,7 @@ import { effect } from '@preact/signals';
 import { getTimezonesForCountry } from 'countries-and-timezones';
 import type { TCountryCode } from 'countries-list';
 import { deepSignal } from 'deepsignal';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 
 import { eventBus, WidgetEvent } from './eventBus';
 import {

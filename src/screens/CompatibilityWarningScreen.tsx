@@ -1,5 +1,5 @@
 import { Box, Button, DialogActions, Typography } from '@mui/material';
-import React from 'react';
+import type { ComponentChildren } from 'preact';
 
 import CallNotification from '../components/CallNotification';
 import {
@@ -15,7 +15,7 @@ interface CompatibilityWarningScreenProps {
   onDismiss: () => void;
 }
 
-function getWarningMessage(warning: BrowserWarning): React.ReactNode {
+function getWarningMessage(warning: BrowserWarning): ComponentChildren {
   switch (warning.type) {
     case 'unsupportedBrowser':
       return (

@@ -1,6 +1,6 @@
 import CloseIcon from '@mui/icons-material/Close';
 import { Box, CircularProgress, IconButton, Typography } from '@mui/material';
-import React from 'react';
+import type { ComponentChildren } from 'preact';
 
 import { colors } from '../theme/colors';
 import { flexBetweenCenter } from '../theme/styles';
@@ -10,7 +10,7 @@ type NotificationType = 'info' | 'error';
 
 interface CallNotificationProps {
   type: NotificationType;
-  message: React.ReactNode;
+  message: ComponentChildren;
   countdown?: number;
   onClose?: () => void;
 }
