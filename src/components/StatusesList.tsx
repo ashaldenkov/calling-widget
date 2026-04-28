@@ -7,7 +7,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'preact/hooks';
 
 import { ERR_GENERIC } from '../errors';
 import { colors } from '../theme/colors';
@@ -99,7 +99,7 @@ const StatusesList = ({
     <>
       <RadioGroup
         value={selectedStatusId ?? ''}
-        onChange={(e) => onSelect(e.target.value)}
+        onChange={(e) => onSelect(e.currentTarget.value)}
       >
         <Stack direction='column'>
           {statuses.map((status) => (

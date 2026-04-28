@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { RefObject } from 'preact';
 
 /**
  * Returns a new AudioContext, using webkitAudioContext on Safari when needed.
@@ -16,8 +16,8 @@ export const getAudioContext = (): AudioContext => {
  * creates a new context if none exists, and returns it.
  */
 export const ensureAudioContext = (
-  contextRef: RefObject<AudioContext | null>,
-  sourceRef: RefObject<MediaStreamAudioSourceNode | null>,
+  contextRef: RefObject<AudioContext>,
+  sourceRef: RefObject<MediaStreamAudioSourceNode>,
 ): AudioContext => {
   let ctx = contextRef.current;
   if (ctx?.state === 'closed') {
@@ -41,7 +41,7 @@ export const ensureAudioContext = (
  */
 export const createUnlockAudioElement = (
   stream: MediaStream,
-  unlockAudioRef: RefObject<HTMLAudioElement | null>,
+  unlockAudioRef: RefObject<HTMLAudioElement>,
 ): void => {
   if (unlockAudioRef.current) {
     unlockAudioRef.current.srcObject = null;

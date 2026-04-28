@@ -9,8 +9,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/preact-query';
+import { useState, useEffect } from 'preact/hooks';
 
 import { api } from '../api/api';
 import CallNotification from '../components/CallNotification';
@@ -150,7 +150,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
           fullWidth
           placeholder='Search'
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.currentTarget.value)}
           slotProps={{
             input: {
               startAdornment: (

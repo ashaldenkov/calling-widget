@@ -5,6 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -15,6 +16,10 @@
     "declaration": false,
     "baseUrl": ".",
     "paths": {
+      "react": ["./node_modules/preact/compat/"],
+      "react/jsx-runtime": ["./node_modules/preact/jsx-runtime"],
+      "react-dom": ["./node_modules/preact/compat/"],
+      "react-dom/*": ["./node_modules/preact/compat/*"],
       "@/*": ["src/*"]
     }
   },

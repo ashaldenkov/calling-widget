@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useRef, useEffect } from 'react';
+import type { RefObject } from 'preact';
+import { useCallback, useMemo, useRef, useEffect } from 'preact/hooks';
 
 import {
   ERR_CALL_FAILED,
@@ -35,9 +36,9 @@ export interface UseJanusCallReturn {
 }
 
 interface AudioContextRefs {
-  contextRef: React.RefObject<AudioContext | null>;
-  sourceRef: React.RefObject<MediaStreamAudioSourceNode | null>;
-  unlockAudioRef: React.RefObject<HTMLAudioElement | null>;
+  contextRef: RefObject<AudioContext>;
+  sourceRef: RefObject<MediaStreamAudioSourceNode>;
+  unlockAudioRef: RefObject<HTMLAudioElement>;
 }
 
 const stopAudioContext = (refs: AudioContextRefs) => {

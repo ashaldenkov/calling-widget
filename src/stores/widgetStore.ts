@@ -76,6 +76,7 @@ function mergePersisted(
     };
   }
 
+  // Transient screens that have no meaning after a reload
   if (
     stored.screen === 'error' ||
     stored.screen === 'sipTrunk' ||
@@ -182,11 +183,6 @@ export const setIsCollapsed = (v: boolean): void => {
 
 export const setCompatibilityWarnings = (warnings: BrowserWarning[]): void => {
   widgetState.compatibilityWarnings = warnings;
-};
-
-export const endCall = (): void => {
-  widgetState.callState = CallState.Ended;
-  widgetState.startCallTime = null;
 };
 
 export const resetToIdle = (): void => {

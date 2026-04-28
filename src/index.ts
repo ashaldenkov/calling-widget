@@ -1,5 +1,4 @@
-import { createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { h, render } from 'preact';
 
 import { queryClient } from './api/queryClient';
 import { App } from './App';
@@ -28,11 +27,11 @@ const LOG_PREFIX = '[CallWidget]';
 
 console.info(`${LOG_PREFIX} v${__WIDGET_VERSION__}`);
 
-let root: Root | null = null;
+let mounted = false;
 let container: HTMLDivElement | null = null;
 
 function ensureMount(): void {
-  if (root) return;
+  if (mounted) return;
 
   container = document.getElementById(CONTAINER_ID) as HTMLDivElement | null;
   if (!container) {
@@ -58,8 +57,8 @@ function ensureMount(): void {
   const mountPoint = document.createElement('div');
   shadow.appendChild(mountPoint);
 
-  root = createRoot(mountPoint);
-  root.render(createElement(App, { shadowRoot: shadow }));
+  render(h(App, { shadowRoot: shadow }), mountPoint);
+  mounted = true;
 }
 
 function handleInit(config: CallWidgetConfig) {
@@ -74,7 +73,7 @@ function handleInit(config: CallWidgetConfig) {
 }
 
 function handleCall(params: CallParams) {
-  if (!root || !widgetState.config) {
+  if (!mounted || !widgetState.config) {
     console.error(`${LOG_PREFIX} Widget not initialized. Emit "init" first.`);
     eventBus.emit(WidgetEvent.Error, { message: 'Widget not initialized' });
     return;

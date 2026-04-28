@@ -43,7 +43,7 @@ const TrunkList = ({
   return (
     <RadioGroup
       value={selectedId ?? ''}
-      onChange={(e) => onSelect(e.target.value)}
+      onChange={(e) => onSelect(e.currentTarget.value)}
     >
       <Stack direction='column'>
         {trunks.map((trunk) => (
