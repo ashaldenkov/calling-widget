@@ -18,7 +18,7 @@ export default defineConfig({
       formats: ['iife'],
     },
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
     minify: 'esbuild',
     target: 'es2022',
     cssCodeSplit: false,
