@@ -9,6 +9,7 @@ Standalone call widget injected into any web page via a `<script>` tag. Uses Jan
 - [Integration](#integration)
 - [Events](#events)
 - [Development](#development)
+- [CI/CD CDN deploy](#cicd-cdn-deploy)
 - [Style Isolation](#style-isolation)
 
 ## Architecture
@@ -128,14 +129,14 @@ declare global {
 Include `loader.js` once in the host app (e.g. in `index.html`):
 
 ```html
-<script src="https://your-cdn.com/loader.js"></script>
+<script src="https://cdn.example.com/call-widget/loader.js"></script>
 ```
 
-Then call `load()` when the auth token is available:
+Then call `load()` when the auth token is available and pass widget bundle URL (usually `latest`):
 
 ```typescript
 const widget = await window.CallWidgetLoader!.load({
-  scriptUrl: 'https://your-cdn.com/call-widget.js',
+  scriptUrl: 'https://cdn.example.com/call-widget/latest/call-widget.js',
   config: {
     apiBaseUrl: 'https://api.example.com',
     webBaseUrl: 'https://app.example.com',
@@ -153,12 +154,26 @@ widget.on('error', (payload) => {
 });
 ```
 
+If you need to pin a specific build for testing/rollback, pass a version URL explicitly:
+
+```typescript
+const widget = await window.CallWidgetLoader!.load({
+  scriptUrl: 'https://cdn.example.com/call-widget/v/1.2.3/call-widget.js',
+  config: {
+    apiBaseUrl: 'https://api.example.com',
+    webBaseUrl: 'https://app.example.com',
+    janusWsUrl: 'wss://webrtc.example.com',
+    authToken: session.token,
+  },
+});
+```
+
 If the auth token isn't available at page load, omit `config` from `load()` and call `init` once you have it:
 
 ```typescript
 // On page load — preload the script without initializing
 const widgetPromise = window.CallWidgetLoader!.load({
-  scriptUrl: 'https://your-cdn.com/call-widget.js',
+  scriptUrl: 'https://cdn.example.com/call-widget/latest/call-widget.js',
 });
 
 // After login — initialize with the token
@@ -343,7 +358,7 @@ const widget = await window.CallWidgetLoader!.load({
 
 After any widget change, re-run `npm run build` and refresh the host page.
 
-**Without a CDN (production):** copy `dist/loader.js` and `dist/call-widget.js` into the host app's static folder and use relative paths (e.g. `/widget/call-widget.js`). Same-origin avoids CORS.
+**Without a CDN (production):** copy `dist/loader.js` and `dist/call-widget.js` into the host app's static folder and pass a same-origin `scriptUrl` (e.g. `/widget/call-widget.js`). Same-origin avoids CORS.
 
 ### Versioning
 
@@ -359,7 +374,78 @@ Release workflow:
 
 1. `npm run version:minor` (or patch/major)
 2. `git push && git push --tags`
-3. `npm run build` and deploy `dist/loader.js` + `dist/call-widget.js` to CDN
+3. Tag pipeline publishes `dist/loader.js` + `dist/call-widget.js` to CDN automatically
+
+## CI/CD CDN deploy
+
+GitLab pipeline deploys to **DigitalOcean Spaces** (S3-compatible) and publishes:
+
+```text
+call-widget/
+  loader.js
+  loader.js.map
+  latest/
+    call-widget.js
+    call-widget.js.map
+  v/
+    <version>/
+      loader.js
+      loader.js.map
+      call-widget.js
+      call-widget.js.map
+```
+
+Version is resolved in this order:
+
+1. `WIDGET_VERSION` CI variable (manual override)
+2. `CI_COMMIT_TAG`
+3. `CI_COMMIT_SHORT_SHA`
+
+Cache policy:
+
+- `v/<version>/*` — `Cache-Control: public, max-age=31536000, immutable`
+- `latest/*` and root `loader.js` — `Cache-Control: public, max-age=300, must-revalidate`
+
+### Infrastructure
+
+The DigitalOcean Spaces bucket and CDN are provisioned via Terraform (`terraform-scalefinal/do/dialers`):
+
+- Bucket ACL: `public-read`
+- CORS: `*` (all origins allowed)
+- CDN: enabled with 600 s TTL
+
+Bucket credentials are stored in Vault automatically by Terraform at:
+
+- mount: `dialers`
+- path: `prod/_common/buckets/call-widget/terraform`
+- fields: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET_NAME`, `AWS_REGION`, `AWS_ENDPOINT`
+
+### CI variables
+
+All variables have defaults in `.gitlab-ci.yml`. Override only if needed:
+
+| Variable | Default | Description |
+|---|---|---|
+| `VAULT_AUTH_ROLE` | `dialers-gitlab` | GitLab JWT role in Vault |
+| `VAULT_MOUNT` | `dialers` | Vault KV mount |
+| `VAULT_SECRET_PATH` | `prod/_common/buckets/call-widget/terraform` | Vault secret path |
+| `WIDGET_STORAGE_PREFIX` | `call-widget` | S3 key prefix |
+| `WIDGET_S3_BUCKET` | from Vault | Override bucket name |
+| `WIDGET_S3_ENDPOINT_URL` | from Vault | Override S3 endpoint |
+| `AWS_DEFAULT_REGION` | from Vault | Override region |
+| `WIDGET_CDN_BASE_URL` | — | When set, prints CDN URLs in job logs |
+
+### Manual operations
+
+- `deploy_cdn` — available as a manual button on `main` branch; runs automatically on tags and web/API triggers.
+- `list_cdn_versions` — lists all uploaded `v/<version>` builds with CDN URLs.
+- `promote_existing_version` — promotes any existing version to `latest` without rebuild (rollback / hot switch). Pass `SOURCE_VERSION=1.2.3`.
+
+Example CDN URLs (when `WIDGET_CDN_BASE_URL=https://cdn.example.com`):
+
+- `https://cdn.example.com/call-widget/loader.js`
+- `https://cdn.example.com/call-widget/latest/call-widget.js`
+- `https://cdn.example.com/call-widget/v/1.2.3/call-widget.js`
 
 ## Style Isolation
 

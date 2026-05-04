@@ -18,7 +18,7 @@ export default defineConfig({
     },
     outDir: 'dist',
     emptyOutDir: false,
-    sourcemap: true,
+    sourcemap: false,
     minify: 'esbuild',
     target: 'es2022',
     rollupOptions: {
