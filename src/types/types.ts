@@ -10,6 +10,7 @@ export interface CallWidgetConfig {
 }
 
 export interface CallParams {
+  apiKey: string;
   clientId: number;
   phoneNumber: string;
   agentId: number;
@@ -116,6 +117,7 @@ export interface WidgetState {
   clientId: number | null;
   phoneNumber: string | null;
   agentId: number | null;
+  apiKey: string | null;
   customerData: CustomerData | null;
   isMicMuted: boolean;
   startCallTime: number | null;

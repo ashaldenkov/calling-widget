@@ -43,7 +43,8 @@ interface SipTrunkScreenProps {
 }
 
 const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
-  const { agentId, clientId, phoneNumber, selectedTrunkId } = widgetState;
+  const { agentId, apiKey, clientId, phoneNumber, selectedTrunkId } =
+    widgetState;
 
   const [localSelectedId, setLocalSelectedId] = useState<string | null>(
     selectedTrunkId,
@@ -54,14 +55,23 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
   const [isStarting, setIsStarting] = useState(false);
 
   const { data, isPending, isError, error } = useQuery({
-    queryKey: ['widget', 'trunks-for-call', agentId, clientId, phoneNumber],
+    queryKey: [
+      'widget',
+      'trunks-for-call',
+      apiKey,
+      agentId,
+      clientId,
+      phoneNumber,
+    ],
     queryFn: () =>
       api<TrunkResponse>('/widget/trunks-for-call', {
         method: 'POST',
         data: {
+          apiKey,
           extAgentId: agentId,
           extCustomerId: clientId ?? undefined,
           phoneNumber: phoneNumber ?? undefined,
+          search: '',
         },
       }),
   });
