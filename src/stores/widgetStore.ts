@@ -14,6 +14,12 @@ import {
 import type { BrowserWarning } from '../utils/browserDetection';
 
 const STORAGE_KEY = 'CallWidgetStore';
+const STALE_TTL_MS = 10 * 60 * 1000;
+
+interface PersistedEnvelope {
+  persistedAt: number;
+  state: PersistedWidgetState;
+}
 
 type PersistedWidgetState = Pick<
   WidgetState,
@@ -22,6 +28,7 @@ type PersistedWidgetState = Pick<
   | 'clientId'
   | 'phoneNumber'
   | 'agentId'
+  | 'apiKey'
   | 'customerData'
   | 'startCallTime'
   | 'selectedTrunkId'
@@ -37,6 +44,7 @@ const initialState: WidgetState = {
   clientId: null,
   phoneNumber: null,
   agentId: null,
+  apiKey: null,
   customerData: null,
   isMicMuted: false,
   startCallTime: null,
@@ -50,15 +58,18 @@ const initialState: WidgetState = {
 
 function loadPersisted(): Partial<PersistedWidgetState> {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as
-      | Partial<PersistedWidgetState>
-      | { state?: Partial<PersistedWidgetState> };
-    if (parsed && typeof parsed === 'object' && 'state' in parsed) {
-      return parsed.state ?? {};
+    const parsed = JSON.parse(raw) as Partial<PersistedEnvelope>;
+    if (
+      !parsed ||
+      typeof parsed.persistedAt !== 'number' ||
+      Date.now() - parsed.persistedAt > STALE_TTL_MS ||
+      !parsed.state
+    ) {
+      return {};
     }
-    return parsed as Partial<PersistedWidgetState>;
+    return parsed.state;
   } catch {
     return {};
   }
@@ -67,13 +78,22 @@ function loadPersisted(): Partial<PersistedWidgetState> {
 function mergePersisted(
   stored: Partial<PersistedWidgetState>,
 ): Partial<WidgetState> {
-  if (stored.callState && ActiveCallStates.has(stored.callState)) {
+  if (
+    stored.callState &&
+    ActiveCallStates.has(stored.callState) &&
+    stored.apiKey
+  ) {
     return {
       ...stored,
       callState: CallState.Idle, // triggers auto-restart useEffect in useCall
       screen: 'calling',
       startCallTime: null,
     };
+  }
+
+  // Active call without apiKey = legacy entry. Drop the call screen state.
+  if (stored.callState && ActiveCallStates.has(stored.callState)) {
+    return { ...stored, callState: CallState.Idle, screen: 'idle' };
   }
 
   // Transient screens that have no meaning after a reload
@@ -103,6 +123,7 @@ effect(() => {
     clientId: widgetState.clientId,
     phoneNumber: widgetState.phoneNumber,
     agentId: widgetState.agentId,
+    apiKey: widgetState.apiKey,
     customerData: widgetState.customerData,
     startCallTime: widgetState.startCallTime,
     selectedTrunkId: widgetState.selectedTrunkId,
@@ -110,8 +131,12 @@ effect(() => {
     statusConfirmedDuringCall: widgetState.statusConfirmedDuringCall,
     isCollapsed: widgetState.isCollapsed,
   };
+  const envelope: PersistedEnvelope = {
+    persistedAt: Date.now(),
+    state: snapshot,
+  };
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
   } catch {
     // ignore
   }
@@ -133,6 +158,7 @@ export const setCallParams = (params: CallParams): void => {
   widgetState.clientId = params.clientId;
   widgetState.phoneNumber = params.phoneNumber;
   widgetState.agentId = params.agentId;
+  widgetState.apiKey = params.apiKey;
 };
 
 export const setScreen = (screen: WidgetScreen): void => {

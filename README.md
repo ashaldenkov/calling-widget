@@ -50,7 +50,7 @@ The widget runs on **Preact 10** via `preact/compat`, wired up by `@preact/prese
 
 ## Backend API contract
 
-- **POST** `{apiBaseUrl}/widget/trunks-for-call` — body `{ extAgentId, extCustomerId?, phoneNumber? }`, returns `{ customerInfo, trunks: [...] }` with all available SIP trunks.
+- **POST** `{apiBaseUrl}/widget/trunks-for-call` — body `{ apiKey, extAgentId, extCustomerId?, phoneNumber?, search? }`, returns `{ customerInfo, trunks: [...] }` with all available SIP trunks. `search` is sent as an empty string by the widget; trunk filtering is performed client-side.
 - **POST** `{apiBaseUrl}/customers/:customerId/call` — body `{ trunkId: number }`, returns `{ bridgeId: string, targetUri: string }`.
 - **PATCH** `{apiBaseUrl}/customers/:customerId/status` — body `{ statusId: string, comment?: string }`, returns updated customer status.
 - **GET** `{apiBaseUrl}/statuses` — query params `{ page, perPage, search? }`, returns `{ data: StatusOption[], pageInfo: { ... } }` (paginated).
@@ -77,7 +77,12 @@ export interface CallWidgetAPI {
   emit(event: 'init', payload: CallWidgetConfig): void;
   emit(
     event: 'call',
-    payload: { clientId: number; phoneNumber: string; agentId: number },
+    payload: {
+      apiKey: string;
+      clientId: number;
+      phoneNumber: string;
+      agentId: number;
+    },
   ): void;
   emit(event: 'dismiss'): void;
   emit(event: 'update_token', payload: { token: string }): void;
@@ -190,6 +195,7 @@ widget.emit('init', {
 
 ```typescript
 widget.emit('call', {
+  apiKey: 'dialer_api_9Fv8qwvtxglAXKzp6IXBC_fksdfjdkj', // backend API key format 
   clientId: 123, // numeric CRM client ID
   phoneNumber: '+1234567890', // E.164 format
   agentId: 456, // numeric CRM agent ID
@@ -271,7 +277,7 @@ widget.emit('call', params);
 | Event          | Payload                                             | Description                                 |
 | -------------- | --------------------------------------------------- | ------------------------------------------- |
 | `init`         | `{ apiBaseUrl, webBaseUrl, janusWsUrl, authToken }` | Initialize widget (first time only)         |
-| `call`         | `{ clientId, phoneNumber, agentId }`                | Open widget and start a call flow           |
+| `call`         | `{ apiKey, clientId, phoneNumber, agentId }`        | Open widget and start a call flow           |
 | `dismiss`      | —                                                   | Reset to idle; widget stays mounted         |
 | `update_token` | `{ token }`                                         | Refresh auth token; pass `''` to invalidate |
 
