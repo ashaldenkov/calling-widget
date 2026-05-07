@@ -79,9 +79,9 @@ export interface CallWidgetAPI {
     event: 'call',
     payload: {
       apiKey: string;
-      clientId: number;
-      phoneNumber: string;
-      agentId: number;
+      extCustomerId: number;
+      phoneNumber?: string;
+      extAgentId: number;
     },
   ): void;
   emit(event: 'dismiss'): void;
@@ -195,10 +195,10 @@ widget.emit('init', {
 
 ```typescript
 widget.emit('call', {
-  apiKey: 'dialer_api_9Fv8qwvtxglAXKzp6IXBC_fksdfjdkj', // backend API key format 
-  clientId: 123, // numeric CRM client ID
-  phoneNumber: '+1234567890', // E.164 format
-  agentId: 456, // numeric CRM agent ID
+  apiKey: 'dialer_api_9Fv8qwvtxglAXKzp6IXBC_fksdfjdkj', // backend API key
+  extCustomerId: 123, // numeric CRM customer ID
+  phoneNumber: '+1234567890', // E.164 format, optional
+  extAgentId: 456, // numeric CRM agent ID
 });
 ```
 
@@ -277,7 +277,7 @@ widget.emit('call', params);
 | Event          | Payload                                             | Description                                 |
 | -------------- | --------------------------------------------------- | ------------------------------------------- |
 | `init`         | `{ apiBaseUrl, webBaseUrl, janusWsUrl, authToken }` | Initialize widget (first time only)         |
-| `call`         | `{ apiKey, clientId, phoneNumber, agentId }`        | Open widget and start a call flow           |
+| `call`         | `{ apiKey, extCustomerId, phoneNumber?, extAgentId }` | Open widget and start a call flow         |
 | `dismiss`      | —                                                   | Reset to idle; widget stays mounted         |
 | `update_token` | `{ token }`                                         | Refresh auth token; pass `''` to invalidate |
 

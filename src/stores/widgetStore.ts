@@ -25,9 +25,9 @@ type PersistedWidgetState = Pick<
   WidgetState,
   | 'screen'
   | 'callState'
-  | 'clientId'
+  | 'extCustomerId'
   | 'phoneNumber'
-  | 'agentId'
+  | 'extAgentId'
   | 'apiKey'
   | 'customerData'
   | 'startCallTime'
@@ -41,9 +41,9 @@ const initialState: WidgetState = {
   config: null,
   screen: 'idle',
   callState: CallState.Idle,
-  clientId: null,
+  extCustomerId: null,
   phoneNumber: null,
-  agentId: null,
+  extAgentId: null,
   apiKey: null,
   customerData: null,
   isMicMuted: false,
@@ -120,9 +120,9 @@ effect(() => {
   const snapshot: PersistedWidgetState = {
     screen: widgetState.screen,
     callState: widgetState.callState,
-    clientId: widgetState.clientId,
+    extCustomerId: widgetState.extCustomerId,
     phoneNumber: widgetState.phoneNumber,
-    agentId: widgetState.agentId,
+    extAgentId: widgetState.extAgentId,
     apiKey: widgetState.apiKey,
     customerData: widgetState.customerData,
     startCallTime: widgetState.startCallTime,
@@ -155,9 +155,9 @@ export const updateAuthToken = (token: string): void => {
 };
 
 export const setCallParams = (params: CallParams): void => {
-  widgetState.clientId = params.clientId;
-  widgetState.phoneNumber = params.phoneNumber;
-  widgetState.agentId = params.agentId;
+  widgetState.extCustomerId = params.extCustomerId;
+  widgetState.phoneNumber = params.phoneNumber ?? null;
+  widgetState.extAgentId = params.extAgentId;
   widgetState.apiKey = params.apiKey;
 };
 

@@ -29,7 +29,7 @@ export const useCall = () => {
     const emitStateChange = (state: CallState) =>
       eventBus.emit(WidgetEvent.CallStateChange, {
         state,
-        clientId: widgetState.clientId ?? undefined,
+        clientId: widgetState.extCustomerId ?? undefined,
       });
 
     switch (event.state) {
@@ -104,7 +104,7 @@ export const useCall = () => {
       setCallState(CallState.Calling);
       eventBus.emit(WidgetEvent.CallStateChange, {
         state: CallState.Calling,
-        clientId: widgetState.clientId ?? undefined,
+        clientId: widgetState.extCustomerId ?? undefined,
       });
 
       await makeCall(response);

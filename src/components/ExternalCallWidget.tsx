@@ -35,7 +35,7 @@ export const ExternalCallWidget = () => {
     customerData,
     isMicMuted,
     error,
-    clientId,
+    extCustomerId,
     isCollapsed,
     compatibilityWarnings,
   } = widgetState;
@@ -72,7 +72,7 @@ export const ExternalCallWidget = () => {
         });
       }
       eventBus.emit(WidgetEvent.StatusConfirmed, {
-        clientId: clientId!,
+        clientId: extCustomerId!,
         statusId,
         dialerId: widgetState.customerData!.dialerId,
       });
@@ -117,10 +117,12 @@ export const ExternalCallWidget = () => {
     if (ActiveCallStates.has(widgetState.callState)) {
       setScreen('calling');
     } else {
-      eventBus.emit(WidgetEvent.StatusChangeSkipped, { clientId: clientId! });
+      eventBus.emit(WidgetEvent.StatusChangeSkipped, {
+        clientId: extCustomerId!,
+      });
       resetToIdle();
     }
-  }, [clientId]);
+  }, [extCustomerId]);
 
   if (screen === 'idle') return null;
 

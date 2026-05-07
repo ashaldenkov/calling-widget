@@ -11,9 +11,9 @@ export interface CallWidgetConfig {
 
 export interface CallParams {
   apiKey: string;
-  clientId: number;
-  phoneNumber: string;
-  agentId: number;
+  extCustomerId: number;
+  phoneNumber?: string;
+  extAgentId: number;
 }
 
 export interface TrunkResponse {
@@ -114,9 +114,9 @@ export interface WidgetState {
   config: CallWidgetConfig | null;
   screen: WidgetScreen;
   callState: CallState;
-  clientId: number | null;
+  extCustomerId: number | null;
   phoneNumber: string | null;
-  agentId: number | null;
+  extAgentId: number | null;
   apiKey: string | null;
   customerData: CustomerData | null;
   isMicMuted: boolean;
