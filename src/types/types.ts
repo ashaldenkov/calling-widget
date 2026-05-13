@@ -110,8 +110,10 @@ export interface MuteNotificationState {
   countdown: number;
 }
 
+export type StoredConfig = CallWidgetConfig;
+
 export interface WidgetState {
-  config: CallWidgetConfig | null;
+  config: StoredConfig | null;
   screen: WidgetScreen;
   callState: CallState;
   extCustomerId: number | null;

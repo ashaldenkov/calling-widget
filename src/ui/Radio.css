@@ -1,0 +1,52 @@
+@layer primitives {
+  .cw-radio {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .cw-radio__input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .cw-radio__dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--cw-text-secondary);
+    background-color: transparent;
+    transition: border-color var(--cw-duration-shortest)
+      var(--cw-easing-standard);
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  .cw-radio[data-checked] .cw-radio__dot::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background-color: var(--cw-text-secondary);
+  }
+
+  .cw-radio[data-disabled] {
+    opacity: 0.5;
+  }
+
+  .cw-radio[data-disabled] .cw-radio__input {
+    cursor: default;
+  }
+
+  .cw-radio:has(.cw-radio__input:focus-visible) .cw-radio__dot {
+    background-color: color-mix(in srgb, var(--cw-primary) 18%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--cw-primary) 18%, transparent);
+  }
+}

@@ -1,21 +1,15 @@
-import { ArrowDropDown } from '@mui/icons-material';
-import { MicNone as MicIcon } from '@mui/icons-material';
-import CallEndOutlinedIcon from '@mui/icons-material/CallEndOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import MicOffIcon from '@mui/icons-material/MicOffOutlined';
-import {
-  Box,
-  Button,
-  Chip,
-  Collapse,
-  Divider,
-  IconButton,
-  Typography,
-} from '@mui/material';
+import { useAutoAnimate } from '@formkit/auto-animate/preact';
 import { getCountryData } from 'countries-list';
-import * as flags from 'country-flag-icons/react/3x2';
 
+import {
+  ArrowDropDownIcon,
+  CallEndOutlinedIcon,
+  EditOutlinedIcon,
+  MicIcon,
+  MicOffIcon,
+} from '../assets/icons';
 import CallNotification from '../components/CallNotification';
+import Flag from '../components/Flag';
 import {
   setIsCollapsed,
   setMicMuted,
@@ -23,18 +17,8 @@ import {
   setScreen,
   widgetState,
 } from '../stores/widgetStore';
-import { colors } from '../theme/colors';
-import {
-  chipBase,
-  dialogTitle,
-  dialogTitlePadding,
-  flexBetweenCenter,
-  flexCenter,
-  flexRowCenter,
-  formButtonPrimary,
-  truncateText,
-} from '../theme/styles';
 import type { CustomerData } from '../types/types';
+import { Button, Chip, Divider, IconButton } from '../ui';
 import { callStatus, muteNotification, useLocalTime } from '../utils';
 
 interface CallInformationScreenProps {
@@ -48,15 +32,10 @@ const CallInformationScreen = ({
 }: CallInformationScreenProps) => {
   const { isMicMuted, notification } = widgetState;
   const { label: callStatusLabel, duration: callDuration } = callStatus;
+  const [notifParent] = useAutoAnimate<HTMLDivElement>();
 
-  const FlagIcon = flags[customer.country.toUpperCase() as keyof typeof flags];
   const localTime = useLocalTime(customer.country);
   const customerName = `${customer.firstName} ${customer.lastName}`;
-
-  const handleEndCall = () => {
-    onEndCall();
-  };
-
   const countryName = getCountryData(customer.country).name;
 
   const handleGoToProfile = () => {
@@ -65,191 +44,127 @@ const CallInformationScreen = ({
   };
 
   return (
-    <>
-      <Box sx={{ ...flexBetweenCenter, ...dialogTitlePadding }}>
-        <Typography variant='h6' sx={dialogTitle}>
-          Call Information
-        </Typography>
+    <div class='cw-screen-call-info'>
+      <div class='cw-screen-call-info__header'>
+        <h6 class='cw-text-h6 cw-screen-call-info__title'>Call Information</h6>
         <IconButton
-          onClick={() => setIsCollapsed(true)}
           size='small'
-          sx={{ p: 0 }}
+          onClick={() => setIsCollapsed(true)}
+          style={{ color: 'var(--cw-text-secondary)' }}
         >
-          <ArrowDropDown />
+          <ArrowDropDownIcon />
         </IconButton>
-      </Box>
+      </div>
 
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          p: '8px 24px 24px 24px',
-        }}
-      >
-        <Collapse in={muteNotification.visible} timeout={300} unmountOnExit>
-          <CallNotification
-            type='info'
-            message='The microphone is muted.'
-            countdown={muteNotification.countdown}
-          />
-        </Collapse>
-        <Collapse in={!!notification} timeout={300} unmountOnExit>
-          <CallNotification
-            type='error'
-            message={notification}
-            onClose={() => setNotification(null)}
-          />
-        </Collapse>
-        <Box sx={{ ...flexBetweenCenter, height: 42, gap: '8px' }}>
-          <Box sx={{ ...flexRowCenter, gap: '8px' }}>
-            {FlagIcon && (
-              <FlagIcon
-                style={{
-                  height: 16,
-                  width: 22,
-                  borderRadius: 2,
-                }}
-                title={customer.country}
-              />
-            )}
-            <Typography
-              variant='body3'
-              sx={{ color: 'textColor.secondary.default' }}
-            >
-              {customer.country}
-              {countryName ? ` / ${countryName}` : ''}
-            </Typography>
-          </Box>
-          <Typography
-            variant='body3'
-            sx={{ color: 'textColor.secondary.default' }}
-          >
-            Local time: {localTime}
-          </Typography>
-        </Box>
-
-        <Box sx={{ ...flexBetweenCenter, height: 20, gap: '8px' }}>
-          <Typography
-            variant='body3'
-            sx={{ color: 'textColor.secondary.default', flexShrink: 0 }}
-          >
-            Customer
-          </Typography>
-          <Typography variant='body3' sx={truncateText}>
-            {customerName}
-          </Typography>
-        </Box>
-
-        <Button
-          variant='outlined'
-          color='primary'
-          fullWidth
-          onClick={handleGoToProfile}
-          sx={{
-            height: 32,
-            textTransform: 'none',
-          }}
-        >
-          Go to profile in Calleague
-        </Button>
-
-        <Divider />
-
-        <Box sx={{ ...flexBetweenCenter, height: 20, gap: '8px' }}>
-          <Typography
-            variant='body3'
-            sx={{ color: 'textColor.secondary.default', flexShrink: 0 }}
-          >
-            Brand
-          </Typography>
-          <Typography variant='body3' sx={truncateText}>
-            {customer.brandName || '-'}
-          </Typography>
-        </Box>
-
-        <Box sx={{ ...flexBetweenCenter, height: 28, gap: '8px' }}>
-          <Typography
-            variant='body3'
-            sx={{ color: 'textColor.secondary.default', flexShrink: 0 }}
-          >
-            Dialer Status:
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {customer.status ? (
-              <Chip
-                label={customer.status.name}
-                size='small'
-                sx={{
-                  ...chipBase,
-                  maxWidth: '80%',
-                  backgroundColor: `${customer.status.color}20`,
-                  border: `1px solid ${customer.status.color}`,
-                  color: 'text.primary',
-                  borderRadius: '100px',
-                  '& .MuiChip-label': { px: 1 },
-                }}
-              />
-            ) : (
-              <Typography variant='body3'>N/A</Typography>
-            )}
-            <IconButton
-              size='small'
-              onClick={() => setScreen('changeStatus')}
-              sx={{ p: '3px' }}
-            >
-              <EditOutlinedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Box>
-        </Box>
-
-        <Box
-          sx={{
-            ...flexCenter,
-            gap: '16px',
-            backgroundColor: colors.gray050,
-            borderRadius: '8px',
-            p: '20px',
-          }}
-        >
-          <Typography
-            variant='body1'
-            sx={{ color: 'textColor.secondary.default' }}
-          >
-            {callStatusLabel}
-          </Typography>
-          {callDuration && (
-            <Typography variant='body2'>{callDuration}</Typography>
+      <div class='cw-screen-call-info__body'>
+        <div ref={notifParent} class='cw-screen-call-info__notifs'>
+          {muteNotification.visible && (
+            <CallNotification
+              type='info'
+              message='The microphone is muted.'
+              countdown={muteNotification.countdown}
+            />
           )}
-        </Box>
+          {notification && (
+            <CallNotification
+              type='error'
+              message={notification}
+              onClose={() => setNotification(null)}
+            />
+          )}
+        </div>
 
-        <Box sx={flexBetweenCenter}>
-          <Button
-            variant='contained'
-            onClick={() => setMicMuted(!isMicMuted)}
-            startIcon={isMicMuted ? <MicOffIcon /> : <MicIcon />}
-            sx={{ ...formButtonPrimary, width: 118, height: 44 }}
-          >
-            {isMicMuted ? 'Unmute' : 'Mute'}
-          </Button>
+        <div class='cw-screen-call-info__main'>
+          <div class='cw-screen-call-info__row cw-screen-call-info__row--country'>
+            <div class='cw-flex-row-center cw-screen-call-info__country'>
+              <Flag country={customer.country} title={customer.country} />
+              <span class='cw-text-body3 cw-text-secondary'>
+                {customer.country}
+                {countryName ? ` / ${countryName}` : ''}
+              </span>
+            </div>
+            <span class='cw-text-body3 cw-text-secondary'>
+              Local time: {localTime}
+            </span>
+          </div>
+
+          <div class='cw-screen-call-info__row'>
+            <span class='cw-text-body3 cw-text-secondary cw-screen-call-info__label'>
+              Customer
+            </span>
+            <span class='cw-text-body3 cw-truncate'>{customerName}</span>
+          </div>
 
           <Button
             variant='outlined'
-            onClick={handleEndCall}
-            startIcon={<CallEndOutlinedIcon />}
-            sx={{
-              width: 118,
-              height: 44,
-              borderColor: colors.red700,
-              color: colors.red700,
-              textTransform: 'capitalize',
-            }}
+            fullWidth
+            onClick={handleGoToProfile}
+            style={{ height: 32 }}
           >
-            End call
+            Go to profile in Calleague
           </Button>
-        </Box>
-      </Box>
-    </>
+
+          <Divider />
+
+          <div class='cw-screen-call-info__row'>
+            <span class='cw-text-body3 cw-text-secondary cw-screen-call-info__label'>
+              Brand
+            </span>
+            <span class='cw-text-body3 cw-truncate'>
+              {customer.brandName || '-'}
+            </span>
+          </div>
+
+          <div class='cw-screen-call-info__row cw-screen-call-info__row--status'>
+            <span class='cw-text-body3 cw-text-secondary cw-screen-call-info__label'>
+              Dialer Status:
+            </span>
+            <div class='cw-screen-call-info__status'>
+              {customer.status ? (
+                <Chip
+                  label={customer.status.name}
+                  color={customer.status.color}
+                />
+              ) : (
+                <span class='cw-text-body3'>N/A</span>
+              )}
+              <IconButton
+                size='small'
+                onClick={() => setScreen('changeStatus')}
+              >
+                <EditOutlinedIcon size={18} />
+              </IconButton>
+            </div>
+          </div>
+
+          <div class='cw-screen-call-info__call-status'>
+            <span class='cw-text-body3 cw-text-secondary'>
+              {callStatusLabel}
+            </span>
+            {callDuration && <span class='cw-text-body3'>{callDuration}</span>}
+          </div>
+
+          <div class='cw-screen-call-info__actions'>
+            <Button
+              onClick={() => setMicMuted(!isMicMuted)}
+              startIcon={isMicMuted ? <MicOffIcon /> : <MicIcon />}
+              style={{ minWidth: 118 }}
+            >
+              {isMicMuted ? 'Unmute' : 'Mute'}
+            </Button>
+
+            <Button
+              variant='outlined'
+              tone='danger'
+              onClick={onEndCall}
+              startIcon={<CallEndOutlinedIcon />}
+            >
+              End call
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

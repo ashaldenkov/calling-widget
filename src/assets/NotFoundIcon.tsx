@@ -1,15 +1,15 @@
-import type { SvgIconProps } from '@mui/material';
-import { SvgIcon } from '@mui/material';
+interface NotFoundIconProps {
+  size?: number;
+}
 
-export const NotFoundIcon = (props: SvgIconProps) => (
-  <SvgIcon
-    {...props}
-    width='124'
-    height='124'
+export const NotFoundIcon = ({ size = 124 }: NotFoundIconProps) => (
+  <svg
+    width={size}
+    height={size}
     viewBox='0 0 124 124'
     fill='none'
+    aria-hidden='true'
   >
-    <rect width='124' height='124' fill='white' />
     <circle cx='62' cy='64' r='48' fill='#F6F8FB' />
     <path
       d='M35 40C35 35.5817 38.5817 32 43 32H65.5L77 44V78C77 82.4183 73.4183 86 69 86H43C38.5817 86 35 82.4183 35 78V40Z'
@@ -29,11 +29,11 @@ export const NotFoundIcon = (props: SvgIconProps) => (
     <path
       d='M82 76L70 88M70 76L82 88'
       stroke='#22224B'
-      strokeWidth='2'
-      strokeLinecap='round'
-      strokeLinejoin='round'
+      stroke-width='2'
+      stroke-linecap='round'
+      stroke-linejoin='round'
     />
-  </SvgIcon>
+  </svg>
 );
 
 export default NotFoundIcon;

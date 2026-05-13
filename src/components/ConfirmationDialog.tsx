@@ -1,13 +1,14 @@
+import { useAutoAnimate } from '@formkit/auto-animate/preact';
+
 import {
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-} from '@mui/material';
+} from '../ui';
 
-import { formButtonPrimary } from '../theme/styles';
-import { formButtonSecondary } from '../theme/styles';
+import CallNotification from './CallNotification';
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -18,6 +19,8 @@ interface ConfirmationDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  error?: string | null;
+  onErrorClose?: () => void;
 }
 
 const ConfirmationDialog = ({
@@ -29,42 +32,33 @@ const ConfirmationDialog = ({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   loading,
+  error,
+  onErrorClose,
 }: ConfirmationDialogProps) => {
+  const [parent] = useAutoAnimate<HTMLDivElement>();
   return (
     <Dialog
       open={open}
       onClose={onCancel}
-      disablePortal
-      disableScrollLock
-      disableEnforceFocus
-      sx={{ position: 'absolute' }}
-      slotProps={{
-        backdrop: {
-          sx: {
-            position: 'absolute',
-          },
-        },
-        paper: {
-          sx: {
-            position: 'absolute',
-            bottom: 24,
-            left: 24,
-            right: 24,
-            m: 0,
-            width: 'auto',
-            boxShadow: '0px 8px 24px 0px #2233541F',
-            borderRadius: 2,
-          },
-        },
-      }}
+      header={
+        <div ref={parent}>
+          {error ? (
+            <CallNotification
+              type='error'
+              message={error}
+              onClose={onErrorClose}
+            />
+          ) : null}
+        </div>
+      }
     >
-      <DialogTitle variant='h6'>{title}</DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
       <DialogContent>{message}</DialogContent>
       <DialogActions>
-        <Button sx={formButtonSecondary} onClick={onCancel} disabled={loading}>
+        <Button tone='secondary' onClick={onCancel} disabled={loading}>
           {cancelLabel}
         </Button>
-        <Button sx={formButtonPrimary} onClick={onConfirm} disabled={loading}>
+        <Button onClick={onConfirm} disabled={loading}>
           {confirmLabel}
         </Button>
       </DialogActions>

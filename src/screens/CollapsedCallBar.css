@@ -1,0 +1,79 @@
+@layer screens {
+  .cw-bar {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 24px;
+  }
+
+  .cw-bar__notifs {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cw-bar__notifs:has(> *) {
+    margin-bottom: 16px;
+  }
+
+  .cw-bar__main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cw-bar__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 42px;
+  }
+
+  .cw-bar__country {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .cw-bar__bottom {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 48px;
+  }
+
+  .cw-bar__names {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cw-bar__status {
+    width: 152px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    background-color: var(--cw-bg-default);
+    border-radius: 8px;
+    padding: 0 16px;
+  }
+
+  .cw-bar__actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  .cw-bar__actions .cw-divider[data-orientation='vertical'] {
+    height: 32px;
+    align-self: center;
+  }
+}

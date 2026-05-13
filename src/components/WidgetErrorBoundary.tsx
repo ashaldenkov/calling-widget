@@ -1,11 +1,9 @@
-import { Paper } from '@mui/material';
 import { Component, type ComponentChildren } from 'preact';
 
 import { ERR_RENDER } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import ErrorScreen from '../screens/ErrorScreen';
 import { resetToIdle } from '../stores/widgetStore';
-import { elevatedPaperShadow } from '../theme';
 import { getErrorMessage } from '../utils';
 
 interface State {
@@ -39,20 +37,9 @@ export class WidgetErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
 
     return (
-      <Paper
-        elevation={0}
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          width: 500,
-          overflow: 'hidden',
-          pointerEvents: 'auto',
-          ...elevatedPaperShadow,
-        }}
-      >
+      <div class='cw-paper'>
         <ErrorScreen onClose={this.handleClose} />
-      </Paper>
+      </div>
     );
   }
 }

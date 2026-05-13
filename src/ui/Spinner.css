@@ -1,0 +1,42 @@
+@layer primitives {
+  @keyframes cw-spinner-rotate {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes cw-spinner-dash {
+    0% {
+      stroke-dasharray: 1px, 200px;
+      stroke-dashoffset: 0;
+    }
+    50% {
+      stroke-dasharray: 100px, 200px;
+      stroke-dashoffset: -15px;
+    }
+    100% {
+      stroke-dasharray: 100px, 200px;
+      stroke-dashoffset: -125px;
+    }
+  }
+
+  .cw-spinner {
+    display: inline-flex;
+    animation: cw-spinner-rotate 1.4s linear infinite;
+    color: var(--cw-primary);
+  }
+
+  .cw-spinner svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .cw-spinner__circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 4;
+    stroke-linecap: round;
+    animation: cw-spinner-dash 1.4s ease-in-out infinite;
+  }
+}

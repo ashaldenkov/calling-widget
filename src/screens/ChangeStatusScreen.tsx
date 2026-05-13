@@ -1,31 +1,15 @@
-import CloseIcon from '@mui/icons-material/Close';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import SearchIcon from '@mui/icons-material/Search';
-import {
-  Box,
-  Button,
-  Collapse,
-  IconButton,
-  InputAdornment,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import autoAnimate from '@formkit/auto-animate';
 import { useInfiniteQuery } from '@tanstack/preact-query';
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 
 import { api } from '../api/api';
+import { CancelIcon, InfoOutlinedIcon, SearchIcon } from '../assets/icons';
 import CallNotification from '../components/CallNotification';
 import StatusesList from '../components/StatusesList';
 import { ERR_STATUS_SAVE } from '../errors';
 import { widgetState } from '../stores/widgetStore';
-import { colors } from '../theme/colors';
-import {
-  dialogTitlePadding,
-  formButtonPrimary,
-  formButtonSecondary,
-} from '../theme/styles';
 import type { StatusOption, StatusesResponse } from '../types/types';
+import { Button, IconButton, TextField, Tooltip } from '../ui';
 import { getErrorMessage } from '../utils';
 
 interface ChangeStatusScreenProps {
@@ -33,30 +17,10 @@ interface ChangeStatusScreenProps {
   onCancel: () => void;
 }
 
-const commentTextFieldSx = {
-  '& .MuiInputLabel-root': {
-    color: 'text.secondary',
-    fontSize: '0.75rem',
-  },
-  '& .MuiInputLabel-shrink': {
-    transform: 'translate(14px, -6px) scale(1)',
-    color: 'text.secondary',
-    fontSize: '0.75rem',
-  },
-  '& .MuiOutlinedInput-root': {
-    padding: '8px 14px',
-    paddingRight: '32px',
-  },
-  '& .MuiInputBase-inputMultiline': {
-    padding: 0,
-  },
-};
-
 const MAX_COMMENT_LENGTH = 500;
 
 const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
   const { customerData } = widgetState;
-
   const currentStatus = customerData?.status ?? null;
 
   const [selectedStatusId, setSelectedStatusId] = useState<string | null>(
@@ -66,6 +30,13 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
   const [comment, setComment] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const errorParent = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!errorParent.current) return;
+    const ctrl = autoAnimate(errorParent.current);
+    return () => ctrl.destroy?.();
+  }, []);
 
   const {
     data,
@@ -117,127 +88,88 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
   };
 
   return (
-    <Box>
-      <Typography variant='h6' sx={dialogTitlePadding}>
-        Change status
-      </Typography>
+    <div class='cw-screen-change-status'>
+      <h6 class='cw-text-h6 cw-screen-title'>Change status</h6>
 
-      <Box
-        sx={{
-          px: '24px',
-          pb: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}
-      >
-        <Collapse in={!!saveError} timeout={300} unmountOnExit>
-          <CallNotification
-            type='error'
-            message={saveError ?? ''}
-            onClose={() => setSaveError(null)}
-          />
-        </Collapse>
-
-        <TextField
-          size='small'
-          fullWidth
-          placeholder='Search'
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.currentTarget.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <SearchIcon
-                  fontSize='small'
-                  sx={{ mr: 1, color: 'text.secondary' }}
-                />
-              ),
-              endAdornment: searchQuery ? (
-                <InputAdornment position='end'>
-                  <IconButton
-                    size='small'
-                    onClick={() => setSearchQuery('')}
-                    edge='end'
-                    sx={{ p: 0.5 }}
-                  >
-                    <CloseIcon fontSize='small' />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            },
-          }}
-        />
-
-        <Box
-          sx={{
-            border: '1px solid',
-            borderColor: colors.gray800_12,
-            borderRadius: 1,
-            height: 192,
-            overflow: 'auto',
-          }}
-        >
-          <StatusesList
-            statuses={allStatuses}
-            selectedStatusId={selectedStatusId}
-            onSelect={setSelectedStatusId}
-            searchQuery={searchQuery}
-            isLoading={isLoading}
-            isError={isError}
-            isFetchingNextPage={isFetchingNextPage}
-            hasNextPage={hasNextPage}
-            onFetchNextPage={() => void fetchNextPage()}
-          />
-        </Box>
-
-        <Box sx={{ position: 'relative' }}>
-          <TextField
-            label='Comment'
-            placeholder='Type your comment'
-            value={comment}
-            onChange={(e) => setComment(e.currentTarget.value)}
-            error={isCommentTooLong}
-            helperText={isCommentTooLong ? 'Too long ' : undefined}
-            multiline
-            minRows={1}
-            maxRows={4}
-            size='small'
-            fullWidth
-            sx={commentTextFieldSx}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <Tooltip title={`${MAX_COMMENT_LENGTH} length max`}>
-            <InfoOutlinedIcon
-              sx={{
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                color: 'text.secondary',
-                fontSize: 20,
-              }}
+      <div class='cw-screen-body'>
+        <div ref={errorParent} class='cw-screen-change-status__notifs'>
+          {saveError && (
+            <CallNotification
+              type='error'
+              message={saveError}
+              onClose={() => setSaveError(null)}
             />
-          </Tooltip>
-        </Box>
+          )}
+        </div>
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-          <Button
-            onClick={onCancel}
-            sx={formButtonSecondary}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={() => void handleSave()}
-            disabled={isSubmitDisabled || isSubmitting}
-            sx={formButtonPrimary}
-          >
-            Save
-          </Button>
-        </Box>
-      </Box>
-    </Box>
+        <div class='cw-screen-change-status__main'>
+          <TextField
+            fullWidth
+            placeholder='Search'
+            value={searchQuery}
+            onInput={(e) => setSearchQuery(e.currentTarget.value)}
+            startAdornment={<SearchIcon size={18} />}
+            endAdornment={
+              searchQuery ? (
+                <IconButton
+                  size='small'
+                  onClick={() => setSearchQuery('')}
+                  style={{ color: 'var(--cw-text-tertiary)' }}
+                >
+                  <CancelIcon size={24} />
+                </IconButton>
+              ) : null
+            }
+          />
+
+          <div class='cw-screen-list cw-scroll cw-screen-change-status__list'>
+            <StatusesList
+              statuses={allStatuses}
+              selectedStatusId={selectedStatusId}
+              onSelect={setSelectedStatusId}
+              searchQuery={searchQuery}
+              isLoading={isLoading}
+              isError={isError}
+              isFetchingNextPage={isFetchingNextPage}
+              hasNextPage={hasNextPage}
+              onFetchNextPage={() => void fetchNextPage()}
+            />
+          </div>
+
+          <div class='cw-screen-change-status__comment'>
+            <TextField
+              label='Comment'
+              placeholder='Type your comment'
+              value={comment}
+              onInput={(e) => setComment(e.currentTarget.value)}
+              error={isCommentTooLong}
+              helperText={isCommentTooLong ? 'Too long' : undefined}
+              multiline
+              minRows={1}
+              maxRows={4}
+              fullWidth
+            />
+            <span class='cw-screen-change-status__hint'>
+              <Tooltip title={`${MAX_COMMENT_LENGTH} length max`}>
+                <InfoOutlinedIcon size={20} />
+              </Tooltip>
+            </span>
+          </div>
+
+          <div class='cw-screen-actions'>
+            <Button tone='secondary' onClick={onCancel} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleSave()}
+              disabled={isSubmitDisabled || isSubmitting}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

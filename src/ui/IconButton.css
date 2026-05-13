@@ -1,0 +1,47 @@
+@layer primitives {
+  .cw-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    transition: background-color var(--cw-duration-shortest)
+      var(--cw-easing-standard);
+
+    &[data-size='small'] {
+      width: 28px;
+      height: 28px;
+    }
+
+    &[data-size='medium'] {
+      width: 40px;
+      height: 40px;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(
+        in srgb,
+        var(--cw-text-primary) 6%,
+        transparent
+      );
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+
+    &:focus-visible {
+      outline: none;
+      background-color: color-mix(
+        in srgb,
+        var(--cw-text-primary) 12%,
+        transparent
+      );
+    }
+  }
+}

@@ -1,15 +1,7 @@
-import {
-  Box,
-  CircularProgress,
-  Radio,
-  RadioGroup,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { useAutoAnimate } from '@formkit/auto-animate/preact';
 
-import { colors } from '../theme/colors';
-import { flexCenter, listRowSx } from '../theme/styles';
 import type { TrunkListItem } from '../types/types';
+import { Radio, RadioGroup, Spinner } from '../ui';
 
 import NoResultsFound from './NoResultsFound';
 
@@ -30,9 +22,9 @@ const TrunkList = ({
 }: TrunkListProps) => {
   if (isLoading) {
     return (
-      <Box sx={{ ...flexCenter, height: '100%' }}>
-        <CircularProgress size={24} />
-      </Box>
+      <div class='cw-list-state'>
+        <Spinner size={24} />
+      </div>
     );
   }
 
@@ -41,35 +33,43 @@ const TrunkList = ({
   }
 
   return (
-    <RadioGroup
-      value={selectedId ?? ''}
-      onChange={(e) => onSelect(e.currentTarget.value)}
-    >
-      <Stack direction='column'>
-        {trunks.map((trunk) => (
-          <Box
-            key={trunk.id}
-            onClick={() => onSelect(trunk.id)}
-            sx={{
-              ...listRowSx,
-              backgroundColor:
-                selectedId === trunk.id ? 'background.default' : 'transparent',
-            }}
-          >
-            <Radio
-              value={trunk.id}
-              checked={selectedId === trunk.id}
-              size='small'
-              sx={{
-                p: 0.5,
-                color: colors.gray700,
-                '&.Mui-checked': { color: colors.gray700 },
-              }}
-            />
-            <Typography variant='body2'>{trunk.name}</Typography>
-          </Box>
-        ))}
-      </Stack>
+    <TrunkListContent
+      trunks={trunks}
+      selectedId={selectedId}
+      onSelect={onSelect}
+    />
+  );
+};
+
+interface TrunkListContentProps {
+  trunks: TrunkListItem[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}
+
+const TrunkListContent = ({
+  trunks,
+  selectedId,
+  onSelect,
+}: TrunkListContentProps) => {
+  const [parent] = useAutoAnimate<HTMLDivElement>();
+  return (
+    <RadioGroup value={selectedId} onChange={onSelect} parentRef={parent}>
+      {trunks.map((trunk) => (
+        <div
+          key={trunk.id}
+          class='cw-list-row'
+          data-selected={selectedId === trunk.id ? '' : undefined}
+          onClick={() => onSelect(trunk.id)}
+        >
+          <Radio
+            name='cw-trunk'
+            value={trunk.id}
+            checked={selectedId === trunk.id}
+          />
+          <span class='cw-text-body3'>{trunk.name}</span>
+        </div>
+      ))}
     </RadioGroup>
   );
 };

@@ -1,12 +1,7 @@
-import { Box, Button, DialogActions, Typography } from '@mui/material';
 import type { ComponentChildren } from 'preact';
 
 import CallNotification from '../components/CallNotification';
-import {
-  dialogTitlePadding,
-  formButtonPrimary,
-  formButtonSecondary,
-} from '../theme/styles';
+import { Button } from '../ui';
 import type { BrowserWarning } from '../utils/browserDetection';
 
 interface CompatibilityWarningScreenProps {
@@ -48,18 +43,10 @@ const CompatibilityWarningScreen = ({
   onContinue,
   onDismiss,
 }: CompatibilityWarningScreenProps) => (
-  <>
-    <Typography variant='h6' sx={dialogTitlePadding}>
-      Browser Compatibility Warning
-    </Typography>
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        padding: '8px 24px',
-      }}
-    >
+  <div class='cw-screen-compat'>
+    <h6 class='cw-text-h6 cw-screen-title'>Browser Compatibility Warning</h6>
+
+    <div class='cw-screen-compat__body'>
       {warnings.map((warning, i) => (
         <CallNotification
           key={i}
@@ -67,24 +54,17 @@ const CompatibilityWarningScreen = ({
           message={getWarningMessage(warning)}
         />
       ))}
-    </Box>
-    <DialogActions>
-      <Button
-        variant='contained'
-        sx={{ ...formButtonSecondary, width: 100 }}
-        onClick={onDismiss}
-      >
+    </div>
+
+    <div class='cw-screen-actions cw-screen-compat__actions'>
+      <Button tone='secondary' onClick={onDismiss}>
         Dismiss
       </Button>
-      <Button
-        variant='outlined'
-        sx={{ ...formButtonPrimary, width: 150 }}
-        onClick={onContinue}
-      >
+      <Button variant='outlined' onClick={onContinue}>
         Continue anyway
       </Button>
-    </DialogActions>
-  </>
+    </div>
+  </div>
 );
 
 export default CompatibilityWarningScreen;

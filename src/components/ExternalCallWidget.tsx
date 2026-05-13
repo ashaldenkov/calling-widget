@@ -1,6 +1,6 @@
-import { Collapse, Paper } from '@mui/material';
+import autoAnimate from '@formkit/auto-animate';
 import { useMutation } from '@tanstack/preact-query';
-import { useCallback, useEffect } from 'preact/hooks';
+import { useCallback, useEffect, useRef } from 'preact/hooks';
 
 import { api } from '../api/api';
 import { eventBus, WidgetEvent } from '../eventBus';
@@ -21,7 +21,6 @@ import {
   setStatusConfirmedDuringCall,
   widgetState,
 } from '../stores/widgetStore';
-import { colors, elevatedPaperShadow } from '../theme';
 import {
   ActiveCallStates,
   CallState,
@@ -41,6 +40,14 @@ export const ExternalCallWidget = () => {
   } = widgetState;
 
   const { hangUp, setMute, startCall } = useCall();
+  const callParent = useRef<HTMLDivElement>(null);
+  const isCalling = screen === 'calling';
+
+  useEffect(() => {
+    if (!isCalling || !callParent.current) return;
+    const ctrl = autoAnimate(callParent.current);
+    return () => ctrl.destroy?.();
+  }, [isCalling]);
 
   // Fire widget_opened if already visible at mount time. On reload mid-call, setScreen fires it
   useEffect(() => {
@@ -127,19 +134,12 @@ export const ExternalCallWidget = () => {
   if (screen === 'idle') return null;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        width: 500,
-        overflow: 'hidden',
-        pointerEvents: 'auto',
-        ...elevatedPaperShadow,
+    <div
+      class='cw-paper'
+      style={{
         outline:
           callState === CallState.Connected && screen === 'calling'
-            ? `1px solid ${colors.success}`
+            ? `1px solid var(--cw-success)`
             : 'none',
       }}
     >
@@ -166,20 +166,21 @@ export const ExternalCallWidget = () => {
       )}
 
       {screen === 'calling' && customerData && (
-        <>
-          <Collapse in={!isCollapsed} timeout={300} unmountOnExit>
-            <CallInformationScreen
-              customer={customerData}
-              onEndCall={handleEndCall}
-            />
-          </Collapse>
-          <Collapse in={isCollapsed} timeout={300} unmountOnExit>
+        <div ref={callParent}>
+          {isCollapsed ? (
             <CollapsedCallBar
+              key='collapsed'
               customer={customerData}
               onEndCall={handleEndCall}
             />
-          </Collapse>
-        </>
+          ) : (
+            <CallInformationScreen
+              key='expanded'
+              customer={customerData}
+              onEndCall={handleEndCall}
+            />
+          )}
+        </div>
       )}
 
       {screen === 'changeStatus' && customerData && (
@@ -188,6 +189,6 @@ export const ExternalCallWidget = () => {
           onCancel={handleStatusCancel}
         />
       )}
-    </Paper>
+    </div>
   );
 };

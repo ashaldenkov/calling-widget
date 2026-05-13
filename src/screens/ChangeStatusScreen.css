@@ -1,0 +1,38 @@
+@layer screens {
+  .cw-screen-change-status .cw-screen-body {
+    gap: 0;
+  }
+
+  .cw-screen-change-status__notifs:has(> *) {
+    margin-bottom: 16px;
+  }
+
+  .cw-screen-change-status__main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cw-screen-change-status__list {
+    height: 192px;
+  }
+
+  .cw-screen-change-status__comment {
+    position: relative;
+  }
+
+  .cw-screen-change-status__comment .cw-textfield__input {
+    padding: 0 40px 0 12px;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .cw-screen-change-status__hint {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: inline-flex;
+    color: var(--cw-text-tertiary);
+  }
+}

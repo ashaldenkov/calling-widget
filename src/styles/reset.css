@@ -1,0 +1,81 @@
+@layer reset {
+  :host {
+    all: initial;
+    contain: content;
+    font-family: var(--cw-font-family);
+    color: var(--cw-text-primary);
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  button {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input,
+  textarea {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  input:focus,
+  textarea:focus,
+  button:focus {
+    outline: none;
+  }
+
+  ul,
+  ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .cw-scroll {
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--cw-text-primary) 30%, transparent)
+      transparent;
+  }
+
+  .cw-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .cw-scroll::-webkit-scrollbar-thumb {
+    background-color: color-mix(
+      in srgb,
+      var(--cw-text-primary) 30%,
+      transparent
+    );
+    border-radius: 4px;
+  }
+
+  .cw-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

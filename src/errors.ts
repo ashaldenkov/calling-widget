@@ -10,7 +10,7 @@ export const ERR_SERVER = 'Server error. Please try again.';
 export const ERR_GENERIC = 'Something went wrong.';
 
 // SIP / Trunk
-export const ERR_NO_TRUNKS = 'No SIP trunks available.';
+export const ERR_NO_TRUNKS = 'No SIP trunk is available for this client.';
 export const ERR_TRUNK_FETCH = 'Failed to load SIP trunk. Please try again.';
 export const ERR_CALL_START = 'Failed to start the call. Please try again.';
 export const ERR_CUSTOMER_DATA = 'Customer data not available.';
@@ -41,8 +41,7 @@ export function mapHttpError(status: number, serverMessage?: string): string {
     return serverMessage;
   }
   if (status === 401) return ERR_SESSION_EXPIRED;
-  if (status === 403)
-    return "You don't have permission to perform this action.";
+  if (status === 403) return 'You do not have permission to call this client.';
   if (status >= 500) return ERR_SERVER;
   return ERR_GENERIC;
 }

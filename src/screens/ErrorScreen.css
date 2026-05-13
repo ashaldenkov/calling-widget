@@ -1,0 +1,16 @@
+@layer screens {
+  .cw-screen-error__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 16px;
+  }
+
+  .cw-screen-error__title {
+    flex: 1;
+  }
+
+  .cw-screen-error__body {
+    padding: 8px 24px 24px;
+  }
+}
