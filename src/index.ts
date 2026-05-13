@@ -1,25 +1,9 @@
 import { h, render } from 'preact';
 
-import { queryClient } from './api/queryClient';
 import { App } from './App';
 import { eventBus, WidgetEvent } from './eventBus';
-import { destroyJanusSession } from './stores/janusStore';
-import {
-  resetToIdle,
-  setCallParams,
-  setCompatibilityWarnings,
-  setConfig,
-  setScreen,
-  updateAuthToken,
-  widgetState,
-} from './stores/widgetStore';
+import { registerWidgetHandlers } from './init';
 import widgetStyles from './styles/widget.css?inline';
-import {
-  ActiveCallStates,
-  type CallParams,
-  type CallWidgetConfig,
-} from './types/types';
-import { detectBrowserWarnings } from './utils/browserDetection';
 
 declare const __WIDGET_VERSION__: string;
 
@@ -28,13 +12,10 @@ const LOG_PREFIX = '[CallWidget]';
 
 console.info(`${LOG_PREFIX} v${__WIDGET_VERSION__}`);
 
-let mounted = false;
-let container: HTMLDivElement | null = null;
-
 function ensureMount(): void {
-  if (mounted) return;
-
-  container = document.getElementById(CONTAINER_ID) as HTMLDivElement | null;
+  let container = document.getElementById(
+    CONTAINER_ID,
+  ) as HTMLDivElement | null;
   if (!container) {
     container = document.createElement('div');
     container.id = CONTAINER_ID;
@@ -66,72 +47,9 @@ function ensureMount(): void {
   shadow.appendChild(mountPoint);
 
   render(h(App, {}), mountPoint);
-  mounted = true;
 }
 
-function handleInit(config: CallWidgetConfig) {
-  if (ActiveCallStates.has(widgetState.callState)) {
-    console.warn(`${LOG_PREFIX} Cannot re-initialize during active call.`);
-    return;
-  }
-  ensureMount();
-  setConfig(config);
-
-  eventBus.emit(WidgetEvent.Initialized);
-}
-
-function handleCall(params: CallParams) {
-  if (!mounted || !widgetState.config) {
-    console.error(`${LOG_PREFIX} Widget not initialized. Emit "init" first.`);
-    eventBus.emit(WidgetEvent.Error, { message: 'Widget not initialized' });
-    return;
-  }
-
-  if (
-    ActiveCallStates.has(widgetState.callState) ||
-    widgetState.screen === 'changeStatus'
-  ) {
-    console.warn(
-      `${LOG_PREFIX} Widget is busy (screen: ${widgetState.screen}), ignoring call.`,
-    );
-    return;
-  }
-
-  if (widgetState.screen !== 'idle') {
-    destroyJanusSession();
-    queryClient.clear();
-    resetToIdle();
-  }
-
-  setCallParams(params);
-
-  const warnings = detectBrowserWarnings();
-  if (warnings.length === 0 || sessionStorage.getItem('cw-compat-warned')) {
-    setScreen('sipTrunk');
-  } else {
-    setCompatibilityWarnings(warnings);
-    setScreen('compatibilityWarning');
-  }
-}
-
-function handleUpdateToken({ token }: { token: string }) {
-  if (!widgetState.config) {
-    console.warn(`${LOG_PREFIX} Cannot update token: widget not initialized.`);
-    return;
-  }
-  updateAuthToken(token);
-}
-
-function handleDismiss() {
-  destroyJanusSession();
-  queryClient.clear();
-  resetToIdle();
-}
-
-eventBus.on(WidgetEvent.Init, handleInit);
-eventBus.on(WidgetEvent.Call, handleCall);
-eventBus.on(WidgetEvent.Dismiss, handleDismiss);
-eventBus.on(WidgetEvent.UpdateToken, handleUpdateToken);
+registerWidgetHandlers(ensureMount);
 
 declare global {
   interface Window {

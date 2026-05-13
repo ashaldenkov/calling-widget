@@ -1,38 +1,42 @@
-import { useAutoAnimate } from '@formkit/auto-animate/preact';
+import { useSignalEffect } from '@preact/signals';
 import { getCountryData } from 'countries-list';
+import { useRef } from 'preact/hooks';
 
 import {
   ArrowDropDownIcon,
   CallEndOutlinedIcon,
   EditOutlinedIcon,
-  MicIcon,
-  MicOffIcon,
 } from '../assets/icons';
-import CallNotification from '../components/CallNotification';
+import CallNotificationsSlot from '../components/CallNotificationsSlot';
 import Flag from '../components/Flag';
-import {
-  setIsCollapsed,
-  setMicMuted,
-  setNotification,
-  setScreen,
-  widgetState,
-} from '../stores/widgetStore';
+import MuteButton from '../components/MuteButton';
+import { setIsCollapsed, setScreen, widgetState } from '../stores/widgetStore';
 import type { CustomerData } from '../types/types';
 import { Button, Chip, Divider, IconButton } from '../ui';
-import { callStatus, muteNotification, useLocalTime } from '../utils';
+import { callStatus, useLocalTime } from '../utils';
 
-interface CallInformationScreenProps {
+interface ExpandedCallBarProps {
   customer: CustomerData;
   onEndCall: () => void;
 }
 
-const CallInformationScreen = ({
-  customer,
-  onEndCall,
-}: CallInformationScreenProps) => {
-  const { isMicMuted, notification } = widgetState;
-  const { label: callStatusLabel, duration: callDuration } = callStatus;
-  const [notifParent] = useAutoAnimate<HTMLDivElement>();
+const ExpandedCallBar = ({ customer, onEndCall }: ExpandedCallBarProps) => {
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const durationRef = useRef<HTMLSpanElement>(null);
+
+  useSignalEffect(() => {
+    if (labelRef.current) labelRef.current.textContent = callStatus.label;
+    const duration = callStatus.duration;
+    const el = durationRef.current;
+    if (!el) return;
+    if (duration) {
+      el.textContent = duration;
+      el.hidden = false;
+    } else {
+      el.textContent = '';
+      el.hidden = true;
+    }
+  });
 
   const localTime = useLocalTime(customer.country);
   const customerName = `${customer.firstName} ${customer.lastName}`;
@@ -44,9 +48,9 @@ const CallInformationScreen = ({
   };
 
   return (
-    <div class='cw-screen-call-info'>
-      <div class='cw-screen-call-info__header'>
-        <h6 class='cw-text-h6 cw-screen-call-info__title'>Call Information</h6>
+    <div class='cw-bar-expanded'>
+      <div class='cw-bar-expanded__header'>
+        <h6 class='cw-text-h6 cw-bar-expanded__title'>Call Information</h6>
         <IconButton
           size='small'
           onClick={() => setIsCollapsed(true)}
@@ -56,27 +60,12 @@ const CallInformationScreen = ({
         </IconButton>
       </div>
 
-      <div class='cw-screen-call-info__body'>
-        <div ref={notifParent} class='cw-screen-call-info__notifs'>
-          {muteNotification.visible && (
-            <CallNotification
-              type='info'
-              message='The microphone is muted.'
-              countdown={muteNotification.countdown}
-            />
-          )}
-          {notification && (
-            <CallNotification
-              type='error'
-              message={notification}
-              onClose={() => setNotification(null)}
-            />
-          )}
-        </div>
+      <div class='cw-bar-expanded__body'>
+        <CallNotificationsSlot class='cw-bar-expanded__notifs' />
 
-        <div class='cw-screen-call-info__main'>
-          <div class='cw-screen-call-info__row cw-screen-call-info__row--country'>
-            <div class='cw-flex-row-center cw-screen-call-info__country'>
+        <div class='cw-bar-expanded__main'>
+          <div class='cw-bar-expanded__row cw-bar-expanded__row--country'>
+            <div class='cw-flex-row-center cw-bar-expanded__country'>
               <Flag country={customer.country} title={customer.country} />
               <span class='cw-text-body3 cw-text-secondary'>
                 {customer.country}
@@ -88,8 +77,8 @@ const CallInformationScreen = ({
             </span>
           </div>
 
-          <div class='cw-screen-call-info__row'>
-            <span class='cw-text-body3 cw-text-secondary cw-screen-call-info__label'>
+          <div class='cw-bar-expanded__row'>
+            <span class='cw-text-body3 cw-text-secondary cw-bar-expanded__label'>
               Customer
             </span>
             <span class='cw-text-body3 cw-truncate'>{customerName}</span>
@@ -106,8 +95,8 @@ const CallInformationScreen = ({
 
           <Divider />
 
-          <div class='cw-screen-call-info__row'>
-            <span class='cw-text-body3 cw-text-secondary cw-screen-call-info__label'>
+          <div class='cw-bar-expanded__row'>
+            <span class='cw-text-body3 cw-text-secondary cw-bar-expanded__label'>
               Brand
             </span>
             <span class='cw-text-body3 cw-truncate'>
@@ -115,11 +104,11 @@ const CallInformationScreen = ({
             </span>
           </div>
 
-          <div class='cw-screen-call-info__row cw-screen-call-info__row--status'>
-            <span class='cw-text-body3 cw-text-secondary cw-screen-call-info__label'>
+          <div class='cw-bar-expanded__row cw-bar-expanded__row--status'>
+            <span class='cw-text-body3 cw-text-secondary cw-bar-expanded__label'>
               Dialer Status:
             </span>
-            <div class='cw-screen-call-info__status'>
+            <div class='cw-bar-expanded__status'>
               {customer.status ? (
                 <Chip
                   label={customer.status.name}
@@ -137,21 +126,13 @@ const CallInformationScreen = ({
             </div>
           </div>
 
-          <div class='cw-screen-call-info__call-status'>
-            <span class='cw-text-body3 cw-text-secondary'>
-              {callStatusLabel}
-            </span>
-            {callDuration && <span class='cw-text-body3'>{callDuration}</span>}
+          <div class='cw-bar-expanded__call-status'>
+            <span ref={labelRef} class='cw-text-body3 cw-text-secondary' />
+            <span ref={durationRef} class='cw-text-body1' hidden />
           </div>
 
-          <div class='cw-screen-call-info__actions'>
-            <Button
-              onClick={() => setMicMuted(!isMicMuted)}
-              startIcon={isMicMuted ? <MicOffIcon /> : <MicIcon />}
-              style={{ minWidth: 118 }}
-            >
-              {isMicMuted ? 'Unmute' : 'Mute'}
-            </Button>
+          <div class='cw-bar-expanded__actions'>
+            <MuteButton />
 
             <Button
               variant='outlined'
@@ -168,4 +149,4 @@ const CallInformationScreen = ({
   );
 };
 
-export default CallInformationScreen;
+export default ExpandedCallBar;

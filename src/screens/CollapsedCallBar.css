@@ -65,6 +65,21 @@
     padding: 0 16px;
   }
 
+  .cw-bar__status-text[data-mode='duration'] {
+    font-size: var(--cw-font-size-body1);
+    line-height: var(--cw-line-height-body1);
+    letter-spacing: var(--cw-letter-spacing);
+    font-weight: var(--cw-font-weight-regular);
+  }
+
+  .cw-bar__status-text[data-mode='label'] {
+    font-size: var(--cw-font-size-body3);
+    line-height: var(--cw-line-height-body3);
+    letter-spacing: var(--cw-letter-spacing);
+    font-weight: var(--cw-font-weight-regular);
+    color: var(--cw-text-secondary);
+  }
+
   .cw-bar__actions {
     display: flex;
     align-items: center;

@@ -1,3 +1,4 @@
+import { memo } from 'preact/compat';
 import { useCallback, useEffect, useRef } from 'preact/hooks';
 
 import { ERR_GENERIC } from '../errors';
@@ -5,6 +6,23 @@ import type { StatusOption } from '../types/types';
 import { Chip, Radio, RadioGroup, Spinner } from '../ui';
 
 import NoResultsFound from './NoResultsFound';
+
+interface StatusRowProps {
+  status: StatusOption;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+}
+
+const StatusRow = memo(({ status, isSelected, onSelect }: StatusRowProps) => (
+  <div
+    class='cw-list-row'
+    data-selected={isSelected ? '' : undefined}
+    onClick={() => onSelect(status.id)}
+  >
+    <Radio name='cw-status' value={status.id} checked={isSelected} />
+    <Chip label={status.name} color={status.color} />
+  </div>
+));
 
 interface StatusesListProps {
   statuses: StatusOption[];
@@ -79,19 +97,12 @@ const StatusesList = ({
     <>
       <RadioGroup value={selectedStatusId} onChange={onSelect}>
         {statuses.map((status) => (
-          <div
+          <StatusRow
             key={status.id}
-            class='cw-list-row'
-            data-selected={selectedStatusId === status.id ? '' : undefined}
-            onClick={() => onSelect(status.id)}
-          >
-            <Radio
-              name='cw-status'
-              value={status.id}
-              checked={selectedStatusId === status.id}
-            />
-            <Chip label={status.name} color={status.color} />
-          </div>
+            status={status}
+            isSelected={selectedStatusId === status.id}
+            onSelect={onSelect}
+          />
         ))}
       </RadioGroup>
       <div ref={loadMoreRef}>

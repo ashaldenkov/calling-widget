@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'preact/hooks';
 import { api } from '../api/api';
 import {
   ERR_CALL_FAILED,
+  ERR_CALL_START,
   ERR_CUSTOMER_DATA,
   ERR_MIC_DISCONNECTED,
   ERR_MIC_PERMISSION,
@@ -11,13 +12,14 @@ import { eventBus, WidgetEvent } from '../eventBus';
 import {
   resetToIdle,
   setCallState,
+  setCurrentBridgeId,
   setNotification,
   setScreen,
   setStartCallTime,
   widgetState,
 } from '../stores/widgetStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
-import { handleWidgetError } from '../utils';
+import { getErrorMessage, handleWidgetError } from '../utils';
 
 import { type JanusCallEvent, useJanusCall } from './useJanusCall';
 
@@ -32,6 +34,23 @@ export const useCall = () => {
         clientId: widgetState.extCustomerId ?? undefined,
       });
 
+    // Janus may deliver hangup/CallFailed late on an already-detached handle.
+    // The old closure carries a stale bridgeId; acting on it would kill the
+    // next in-flight call.
+    const isStale = (e: JanusCallEvent): boolean => {
+      const { callState: cs, currentBridgeId } = widgetState;
+      if (
+        cs === CallState.Idle ||
+        cs === CallState.Ended ||
+        cs === CallState.Failed
+      ) {
+        return true;
+      }
+      return Boolean(
+        e.bridgeId && currentBridgeId && e.bridgeId !== currentBridgeId,
+      );
+    };
+
     switch (event.state) {
       case CallState.Ringing:
         setCallState(CallState.Ringing);
@@ -43,7 +62,9 @@ export const useCall = () => {
         emitStateChange(CallState.Connected);
         break;
       case CallState.Failed: {
+        if (isStale(event)) break;
         setCallState(CallState.Failed);
+        setCurrentBridgeId(null);
         const msg = event.message || ERR_CALL_FAILED;
         setNotification(msg);
         emitStateChange(CallState.Failed);
@@ -51,7 +72,9 @@ export const useCall = () => {
         break;
       }
       case CallState.Ended: {
+        if (isStale(event)) break;
         setCallState(CallState.Ended);
+        setCurrentBridgeId(null);
         setStartCallTime(null);
         emitStateChange(CallState.Ended);
         if (widgetState.statusConfirmedDuringCall) {
@@ -69,7 +92,7 @@ export const useCall = () => {
     eventBus.emit(WidgetEvent.Error, { message: ERR_MIC_DISCONNECTED });
   }, []);
 
-  const { makeCall, hangUp, setMute } = useJanusCall({
+  const { makeCall, hangUp } = useJanusCall({
     onEvent: handleEvent,
     onMicDisconnected: handleMicDisconnected,
     janusWsUrl: config?.janusWsUrl ?? '',
@@ -95,11 +118,19 @@ export const useCall = () => {
         return;
       }
 
-      const response = await api<CallCustomerResponse>(
-        `/customers/${customerData.dialerId}/call`,
-        { method: 'POST', data: { trunkId: Number(trunkId) } },
-      );
+      let response: CallCustomerResponse;
+      try {
+        response = await api<CallCustomerResponse>(
+          `/customers/${customerData.dialerId}/call`,
+          { method: 'POST', data: { trunkId: Number(trunkId) } },
+        );
+      } catch (err) {
+        // Guards the widget from stuck of the auto-restart after reload
+        handleWidgetError(getErrorMessage(err, ERR_CALL_START), err);
+        return;
+      }
 
+      setCurrentBridgeId(response.bridgeId);
       setScreen('calling');
       setCallState(CallState.Calling);
       eventBus.emit(WidgetEvent.CallStateChange, {
@@ -138,5 +169,5 @@ export const useCall = () => {
     }
   }, [screen, callState, customerData, selectedTrunkId, config, startCall]);
 
-  return { hangUp, setMute, startCall };
+  return { hangUp, startCall };
 };

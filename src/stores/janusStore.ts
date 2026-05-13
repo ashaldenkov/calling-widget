@@ -1,8 +1,11 @@
+import { effect, signal } from '@preact/signals';
 import { deepSignal } from 'deepsignal';
 import Janus from 'janus-gateway';
 import adapter from 'webrtc-adapter';
 
 import { getErrorMessage } from '../utils';
+
+import { widgetState } from './widgetStore';
 
 const LOG_PREFIX = '[Janus Store]';
 
@@ -108,3 +111,28 @@ export function destroyJanusSession(): void {
   janusState.error = null;
   initPromise = null;
 }
+
+export const janusHandle = signal<any>(null);
+
+export function setJanusHandle(handle: any): void {
+  janusHandle.value = handle;
+}
+
+export function clearJanusHandle(): void {
+  janusHandle.value = null;
+}
+
+effect(() => {
+  const handle = janusHandle.value;
+  const muted = widgetState.isMicMuted;
+  if (!handle?.webrtcStuff?.myStream) return;
+  try {
+    if (muted) {
+      handle.muteAudio();
+    } else {
+      handle.unmuteAudio();
+    }
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Error setting mute:`, error);
+  }
+});

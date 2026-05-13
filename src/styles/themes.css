@@ -1,6 +1,6 @@
 @layer themes {
   :host,
-  :host([data-cw-theme='light']) {
+  .cw-host {
     --cw-text-primary: var(--cw-color-gray-800);
     --cw-text-secondary: var(--cw-color-gray-700);
     --cw-text-tertiary: var(--cw-color-gray-300);
@@ -32,7 +32,8 @@
     --cw-backdrop: #1b1b23b2;
   }
 
-  :host([data-cw-theme='dark']) {
+  :host([data-cw-theme='dark']),
+  .cw-host[data-cw-theme='dark'] {
     --cw-text-primary: #ffffff;
     --cw-text-secondary: #768194;
     --cw-text-tertiary: #ffffff80;

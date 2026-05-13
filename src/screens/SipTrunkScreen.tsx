@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/preact-query';
 import { useState, useEffect } from 'preact/hooks';
 
 import { api } from '../api/api';
-import { CancelIcon, SearchIcon } from '../assets/icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import SearchField from '../components/SearchField';
 import TrunkList from '../components/TrunkList';
 import { encryptPhoneNumber } from '../crypto/phoneEncryption';
 import {
@@ -19,7 +19,7 @@ import {
   widgetState,
 } from '../stores/widgetStore';
 import type { TrunkResponse } from '../types/types';
-import { Button, IconButton, TextField } from '../ui';
+import { Button } from '../ui';
 import { getErrorMessage, handleWidgetError } from '../utils';
 
 interface SipTrunkScreenProps {
@@ -128,24 +128,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
       <h6 class='cw-text-h6 cw-screen-title'>SIP Trunk</h6>
 
       <div class='cw-screen-body'>
-        <TextField
-          fullWidth
-          placeholder='Search'
-          value={search}
-          onInput={(e) => setSearch(e.currentTarget.value)}
-          startAdornment={<SearchIcon size={18} />}
-          endAdornment={
-            search ? (
-              <IconButton
-                size='small'
-                onClick={() => setSearch('')}
-                style={{ color: 'var(--cw-text-tertiary)' }}
-              >
-                <CancelIcon size={24} />
-              </IconButton>
-            ) : null
-          }
-        />
+        <SearchField onChange={setSearch} debounceMs={0} />
 
         <div class='cw-screen-list cw-scroll'>
           <TrunkList

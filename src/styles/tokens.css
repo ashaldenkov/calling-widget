@@ -1,5 +1,6 @@
 @layer tokens {
-  :host {
+  :host,
+  .cw-host {
     --cw-color-blue-100: #ebf9ff;
     --cw-color-blue-400: #0090cd;
 
@@ -24,11 +25,13 @@
 
     --cw-font-family: 'Roboto', sans-serif;
     --cw-font-size-h6: clamp(1.125rem, 1.25vw + 0.75rem, 1.25rem);
+    --cw-font-size-body1: 1rem;
     --cw-font-size-body2: clamp(0.875rem, 0.5vw + 0.75rem, 1rem);
     --cw-font-size-body3: clamp(0.8125rem, 0.25vw + 0.75rem, 0.875rem);
     --cw-font-size-body4: clamp(0.75rem, 0.25vw + 0.7rem, 0.875rem);
     --cw-font-size-caption: 0.75rem;
     --cw-line-height-h6: 1.6;
+    --cw-line-height-body1: 1.5;
     --cw-line-height-body2: 1.5;
     --cw-line-height-body3: 1.43;
     --cw-line-height-body4: 1.43;

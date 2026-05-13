@@ -4,56 +4,21 @@ Standalone call widget injected into any web page via a `<script>` tag. Uses Jan
 
 ## Table of Contents
 
-- [Architecture](#architecture)
 - [Backend API contract](#backend-api-contract)
 - [Integration](#integration)
 - [Events](#events)
 - [Development](#development)
 - [CI/CD CDN deploy](#cicd-cdn-deploy)
+- [Releases & versioning](#releases--versioning)
 - [Style Isolation](#style-isolation)
-
-## Architecture
-
-```
-src/
-  index.ts                  # Entry point: Shadow DOM setup, EventBus handlers, global API
-  App.tsx                   # QueryClientProvider + Emotion + MUI ThemeProvider
-  components/
-    ExternalCallWidget.tsx  # Widget orchestration: screens, call flow, store
-    CallNotification.tsx    # Info/error notification bar
-    ConfirmationDialog.tsx  # Reusable confirmation dialog (used in SipTrunkScreen)
-    StatusesList.tsx        # Infinite-scroll status picker (used in ChangeStatusScreen)
-    WidgetErrorBoundary.tsx # Error boundary (react-error-boundary under preact/compat)
-  screens/
-    index.ts
-    SipTrunkScreen.tsx
-    CallInformationScreen.tsx
-    CollapsedCallBar.tsx
-    ChangeStatusScreen.tsx
-    CompatibilityWarningScreen.tsx
-    ErrorScreen.tsx
-  stores/
-    widgetStore.ts          # Zustand state
-    janusStore.ts           # Janus WebRTC session manager
-  hooks/
-    useCall.ts              # Call orchestration: mic check, trunk selection, Janus flow
-    useJanusCall.ts         # Janus SIP call hook (emits CallState events)
-  eventBus/                 # EventBus for host app communication
-  api/                      # Fetch wrapper, TanStack Query defaults, QueryClient
-  theme/                    # MUI theme
-  types/
-```
-
-### Runtime stack
-
-The widget runs on **Preact 10** via `preact/compat`, wired up by `@preact/preset-vite`. The preset aliases `react`, `react-dom`, and the JSX runtime to Preact at bundle time, so first‑party code and third‑party libs (MUI, `@tanstack/react-query`, `react-error-boundary`) keep importing from `react` unchanged.
 
 ## Backend API contract
 
-- **POST** `{apiBaseUrl}/widget/trunks-for-call` — body `{ apiKey, extAgentId, extCustomerId?, phoneNumber?, search? }`, returns `{ customerInfo, trunks: [...] }` with all available SIP trunks. `search` is sent as an empty string by the widget; trunk filtering is performed client-side.
+- **POST** `{apiBaseUrl}/widget/trunks-for-call` — body `{ apiKey, extAgentId, extCustomerId?, phoneNumberEnc?, search? }`, returns `{ customerInfo, trunks: [...] }` with all available SIP trunks. `phoneNumberEnc` is the host-supplied `phoneNumber` encrypted client-side via `encryptPhoneNumber()` before being sent. `search` is sent as an empty string by the widget; trunk filtering is performed client-side.
+- **GET** `{apiBaseUrl}/customers/:customerId/in-call` — returns `{ inCall: boolean }`. Polled once before placing the call to block double-dialing.
 - **POST** `{apiBaseUrl}/customers/:customerId/call` — body `{ trunkId: number }`, returns `{ bridgeId: string, targetUri: string }`.
 - **PATCH** `{apiBaseUrl}/customers/:customerId/status` — body `{ statusId: string, comment?: string }`, returns updated customer status.
-- **GET** `{apiBaseUrl}/statuses` — query params `{ page, perPage, search? }`, returns `{ data: StatusOption[], pageInfo: { ... } }` (paginated).
+- **GET** `{apiBaseUrl}/statuses` — query params `{ page, perPage, search? }`, returns `{ items: StatusOption[], pageInfo: { ... } }` (paginated).
 
 All requests use `Authorization: Bearer {authToken}` from the init config.
 
@@ -114,6 +79,7 @@ export interface CallWidgetAPI {
     handler: (payload: { clientId: number }) => void,
   ): void;
   on(event: 'error', handler: (payload: { message: string }) => void): void;
+  on(event: 'unauthorized', handler: () => void): void;
   off(event: string, handler: (...args: never[]) => void): void;
 }
 
@@ -238,6 +204,11 @@ widget.on('status_change_skipped', (payload) => {
 widget.on('widget_dismissed', () => {
   console.log('Widget closed');
 });
+
+widget.on('unauthorized', async () => {
+  const token = await refreshAuthToken();
+  widget.emit('update_token', { token });
+});
 ```
 
 ### Dismissing the widget
@@ -274,77 +245,87 @@ widget.emit('call', params);
 
 **Inbound (host → widget):**
 
-| Event          | Payload                                             | Description                                 |
-| -------------- | --------------------------------------------------- | ------------------------------------------- |
-| `init`         | `{ apiBaseUrl, webBaseUrl, janusWsUrl, authToken }` | Initialize widget (first time only)         |
-| `call`         | `{ apiKey, extCustomerId, phoneNumber?, extAgentId }` | Open widget and start a call flow         |
-| `dismiss`      | —                                                   | Reset to idle; widget stays mounted         |
-| `update_token` | `{ token }`                                         | Refresh auth token; pass `''` to invalidate |
+| Event          | Payload                                               | Description                                 |
+| -------------- | ----------------------------------------------------- | ------------------------------------------- |
+| `init`         | `{ apiBaseUrl, webBaseUrl, janusWsUrl, authToken }`   | Initialize widget (first time only)         |
+| `call`         | `{ apiKey, extCustomerId, phoneNumber?, extAgentId }` | Open widget and start a call flow           |
+| `dismiss`      | —                                                     | Reset to idle; widget stays mounted         |
+| `update_token` | `{ token }`                                           | Refresh auth token; pass `''` to invalidate |
 
 **Outbound (widget → host):**
 
-| Event                   | Payload                            | When                                                                 |
-| ----------------------- | ---------------------------------- | -------------------------------------------------------------------- |
-| `initialized`           | —                                  | Widget mounted and ready                                             |
-| `widget_opened`         | —                                  | Widget UI became visible                                             |
-| `widget_dismissed`      | —                                  | Widget UI fully gone (all paths)                                     |
-| `call_state_change`     | `{ state, clientId? }`             | Every state transition: calling → ringing → connected → ended/failed |
-| `trunk_selected`        | `{ trunkId: string, trunkName }`   | User confirmed trunk selection                                       |
-| `mic_toggled`           | `{ muted }`                        | User muted or unmuted the microphone                                 |
-| `status_confirmed`      | `{ clientId, statusId, dialerId }` | User saved a post-call status                                        |
-| `status_change_skipped` | `{ clientId }`                     | User skipped status change after call                                |
-| `error`                 | `{ message }`                      | Any error occurred                                                   |
+| Event                   | Payload                            | When                                                                        |
+| ----------------------- | ---------------------------------- | --------------------------------------------------------------------------- |
+| `initialized`           | —                                  | Widget mounted and ready                                                    |
+| `widget_opened`         | —                                  | Widget UI became visible                                                    |
+| `widget_dismissed`      | —                                  | Widget UI fully gone (all paths)                                            |
+| `call_state_change`     | `{ state, clientId? }`             | Every state transition: calling → ringing → connected → ended/failed        |
+| `trunk_selected`        | `{ trunkId: string, trunkName }`   | User confirmed trunk selection                                              |
+| `mic_toggled`           | `{ muted }`                        | User muted or unmuted the microphone                                        |
+| `status_confirmed`      | `{ clientId, statusId, dialerId }` | User saved a post-call status                                               |
+| `status_change_skipped` | `{ clientId }`                     | User skipped status change after call                                       |
+| `error`                 | `{ message }`                      | Any error occurred                                                          |
+| `unauthorized`          | —                                  | Any API request returned 401. Host should refresh token via `update_token`. |
 
 ## Screen & call state flow
 
 ### Widget life flow
 
-| Phase                            | `screen`       | `callState` | Set by                                           |
-| -------------------------------- | -------------- | ----------- | ------------------------------------------------ |
-| Widget hidden                    | `idle`         | `Idle`      | `resetToIdle()` or initial state                 |
-| Trunk selection                  | `sipTrunk`     | `Idle`      | `handleCall()` in index.ts                       |
-| Call initiating                  | `calling`      | `Calling`   | `startCallWithTrunk()` — set together atomically |
-| Destination ringing              | `calling`      | `Ringing`   | `useCall` Janus event                            |
-| Call live                        | `calling`      | `Connected` | `useCall` Janus event                            |
-| Call failed                      | `calling`      | `Failed`    | `useCall` Janus event — shows notification       |
-| Status edit during live call     | `changeStatus` | `Connected` | `handleOpenStatusChange()`                       |
-| Call ended, status not yet given | `changeStatus` | `Ended`     | `useCall` Ended handler                          |
-| Status saved / skipped           | `idle`         | `Idle`      | `resetToIdle()`                                  |
+| Phase                            | `screen`       | `callState` | Set by                                               |
+| -------------------------------- | -------------- | ----------- | ---------------------------------------------------- |
+| Widget hidden                    | `idle`         | `Idle`      | `resetToIdle()` or initial state                     |
+| Trunk selection                  | `sipTrunk`     | `Idle`      | `handleCall()` in index.ts                           |
+| Call initiating                  | `calling`      | `Calling`   | `startCallWithTrunk()` — set together atomically     |
+| Destination ringing              | `calling`      | `Ringing`   | `useCall` Janus event                                |
+| Call live                        | `calling`      | `Connected` | `useCall` Janus event                                |
+| Call failed                      | `calling`      | `Failed`    | `useCall` Janus event — shows notification           |
+| Status edit during live call     | `changeStatus` | `Connected` | `setScreen('changeStatus')` in `ExpandedCallBar.tsx` |
+| Call ended, status not yet given | `changeStatus` | `Ended`     | `useCall` Ended handler                              |
+| Status saved / skipped           | `idle`         | `Idle`      | `resetToIdle()`                                      |
 
-> **`screen='calling'` + `callState=Idle`** is a special state produced **only by the Zustand `merge` function on page reload** during an active call. It is the signal for the auto-restart call by `useEffect` in `useCall.ts` and never appears in the normal live-session flow.
+> **`screen='calling'` + `callState=Idle`** is a special state produced **only by `mergePersisted()` in `widgetStore.ts` on page reload** during an active call. It is the signal for the auto-restart call by `useEffect` in `useCall.ts` and never appears in the normal live-session flow.
 
 ## Development
 
+### Setup
+
 ```bash
 npm install
+cp .env.example .env
 ```
 
-**Embedding in a host app — two options:**
+Fill `.env`:
 
-**Dev server (HMR, no build step):** run `npm run dev` — starts on **http://localhost:5174**. Add the module script to the host HTML and use `window.CallWidget` directly (no loader). All events and payloads are identical to the loader-based integration. Add `CallWidget` to the host's local type declaration:
+| Variable                 | Required for             | Purpose                                                                |
+| ------------------------ | ------------------------ | ---------------------------------------------------------------------- |
+| `HTTP_PORT`              | `npm run dev` (optional) | Dev-server port. Default `3030`.                                       |
+| `VITE_API_BASE_URL`      | standalone dev page      | CRM backend base URL — used both for dev auto-login and widget config. |
+| `VITE_WEB_BASE_URL`      | standalone dev page      | Web app base URL (passed into widget config).                          |
+| `VITE_JANUS_WS_URL`      | standalone dev page      | Janus gateway WS URL.                                                  |
+| `VITE_DEV_AUTH_EMAIL`    | standalone dev page      | Email used by `devLogin()` to fetch a JWT against `POST /auth`.        |
+| `VITE_DEV_AUTH_PASSWORD` | standalone dev page      | Password for `devLogin()`.                                             |
 
-```html
-<script type="module" src="http://localhost:5174/src/index.ts"></script>
+> `.env` is gitignored. `.env.example` is the template — keep it in sync when adding new variables.
+
+### Option 1 — Standalone dev page (recommended for widget work)
+
+```bash
+npm run dev
 ```
 
-```typescript
-window.CallWidget.emit('init', {
-  apiBaseUrl: 'https://api.example.com',
-  webBaseUrl: 'https://app.example.com',
-  janusWsUrl: 'wss://webrtc.example.com',
-  authToken: session.token,
-});
+Starts the Vite dev server (HMR) on `http://localhost:${HTTP_PORT:-3030}` and serves a built-in test page ([index.html](index.html) → [src/localDev.tsx](src/localDev.tsx)) that:
+
+1. Hits `POST {VITE_API_BASE_URL}/auth` with `VITE_DEV_AUTH_EMAIL` / `VITE_DEV_AUTH_PASSWORD` to obtain a JWT.
+2. Emits `init` automatically with that token + URLs from `.env`.
+3. Renders a form for the `call` payload.
+
+### Option 2 — Embedded in a host app via loader (mirrors prod)
+
+```bash
+npm run preview
 ```
 
-```typescript
-declare global {
-  interface Window {
-    CallWidget: CallWidgetAPI;
-  }
-}
-```
-
-**Built preview:** run `npm run preview` — builds to `dist/` and serves on **http://localhost:3005**. Use the loader:
+Builds to `dist/` and serves on **http://localhost:3005**. The host (e.g. crm-front in dev mode) loads:
 
 ```html
 <script src="http://localhost:3005/loader.js"></script>
@@ -362,25 +343,11 @@ const widget = await window.CallWidgetLoader!.load({
 });
 ```
 
-After any widget change, re-run `npm run build` and refresh the host page.
+After any widget change, re-run `npm run preview` (it rebuilds before serving) and refresh the host page.
 
-**Without a CDN (production):** copy `dist/loader.js` and `dist/call-widget.js` into the host app's static folder and pass a same-origin `scriptUrl` (e.g. `/widget/call-widget.js`). Same-origin avoids CORS.
+### Without a CDN (testing)
 
-### Versioning
-
-```bash
-npm run version:patch   # 1.0.0 → 1.0.1
-npm run version:minor   # 1.0.0 → 1.1.0
-npm run version:major   # 1.0.0 → 2.0.0
-```
-
-Bumps `package.json`, creates a git commit and tag. The version is embedded as `__WIDGET_VERSION__` and logged to the console on load.
-
-Release workflow:
-
-1. `npm run version:minor` (or patch/major)
-2. `git push && git push --tags`
-3. Tag pipeline publishes `dist/loader.js` + `dist/call-widget.js` to CDN automatically
+Copy `dist/loader.js` and `dist/call-widget.js` into the host app's static folder and pass a same-origin `scriptUrl` (e.g. `/widget/call-widget.js`).
 
 ## CI/CD CDN deploy
 
@@ -389,17 +356,25 @@ GitLab pipeline deploys to **DigitalOcean Spaces** (S3-compatible) and publishes
 ```text
 call-widget/
   loader.js
-  loader.js.map
   latest/
     call-widget.js
-    call-widget.js.map
   v/
     <version>/
       loader.js
-      loader.js.map
       call-widget.js
-      call-widget.js.map
 ```
+
+**Deploy triggers:**
+
+| Trigger                                                 | `deploy_cdn` behavior                                                                   |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Push tag (`v1.1.0` etc.)                                | ✅ Auto-deploys on build success. Use `npm run version:*` and `git push --follow-tags`. |
+| Pipeline triggered via web UI / API / scheduled trigger | ✅ Auto-deploys on build success.                                                       |
+| Push to `main`                                          | ⏸ Manual — appears as a play button in the pipeline; click to deploy.                  |
+| Push to feature branch                                  | ❌ No deploy job. Build-only.                                                           |
+| Merge request                                           | ❌ No deploy job. Build-only.                                                           |
+
+> **`/latest/` is shared across all customers using that URL.** Any deploy overwrites it. Don't trigger a web-UI pipeline from a feature branch unless you intend to ship that branch to all `/latest/` users. For local testing put build contents to the main app and create a feature-stand by separate MR.
 
 Version is resolved in this order:
 
@@ -430,22 +405,22 @@ Bucket credentials are stored in Vault automatically by Terraform at:
 
 All variables have defaults in `.gitlab-ci.yml`. Override only if needed:
 
-| Variable | Default | Description |
-|---|---|---|
-| `VAULT_AUTH_ROLE` | `dialers-gitlab` | GitLab JWT role in Vault |
-| `VAULT_MOUNT` | `dialers` | Vault KV mount |
-| `VAULT_SECRET_PATH` | `prod/_common/buckets/call-widget/terraform` | Vault secret path |
-| `WIDGET_STORAGE_PREFIX` | `call-widget` | S3 key prefix |
-| `WIDGET_S3_BUCKET` | from Vault | Override bucket name |
-| `WIDGET_S3_ENDPOINT_URL` | from Vault | Override S3 endpoint |
-| `AWS_DEFAULT_REGION` | from Vault | Override region |
-| `WIDGET_CDN_BASE_URL` | — | When set, prints CDN URLs in job logs |
+| Variable                 | Default                                      | Description                           |
+| ------------------------ | -------------------------------------------- | ------------------------------------- |
+| `VAULT_AUTH_ROLE`        | `dialers-gitlab`                             | GitLab JWT role in Vault              |
+| `VAULT_MOUNT`            | `dialers`                                    | Vault KV mount                        |
+| `VAULT_SECRET_PATH`      | `prod/_common/buckets/call-widget/terraform` | Vault secret path                     |
+| `WIDGET_STORAGE_PREFIX`  | `call-widget`                                | S3 key prefix                         |
+| `WIDGET_S3_BUCKET`       | from Vault                                   | Override bucket name                  |
+| `WIDGET_S3_ENDPOINT_URL` | from Vault                                   | Override S3 endpoint                  |
+| `AWS_DEFAULT_REGION`     | from Vault                                   | Override region                       |
+| `WIDGET_CDN_BASE_URL`    | —                                            | When set, prints CDN URLs in job logs |
 
 ### Manual operations
 
 - `deploy_cdn` — available as a manual button on `main` branch; runs automatically on tags and web/API triggers.
 - `list_cdn_versions` — lists all uploaded `v/<version>` builds with CDN URLs.
-- `promote_existing_version` — promotes any existing version to `latest` without rebuild (rollback / hot switch). Pass `SOURCE_VERSION=1.2.3`.
+- `promote_existing_version` — promotes any existing version to `latest` without rebuild (rollback / hot switch). Pass variable `SOURCE_VERSION=v1.2.3`.
 
 Example CDN URLs (when `WIDGET_CDN_BASE_URL=https://cdn.example.com`):
 
@@ -453,6 +428,28 @@ Example CDN URLs (when `WIDGET_CDN_BASE_URL=https://cdn.example.com`):
 - `https://cdn.example.com/call-widget/latest/call-widget.js`
 - `https://cdn.example.com/call-widget/v/1.2.3/call-widget.js`
 
+## Releases & versioning
+
+The widget version comes from `package.json` and is embedded into the bundle as `__WIDGET_VERSION__` (logged to the console on load).
+
+```bash
+npm run version:patch   # 1.0.0 → 1.0.1
+npm run version:minor   # 1.0.0 → 1.1.0
+npm run version:major   # 1.0.0 → 2.0.0
+```
+
+Each command bumps `package.json`, creates a git commit, and creates an annotated git tag (`v1.0.1`, etc.) pointing at that bump commit.
+
+**Release workflow:**
+
+1. Make sure your changes are merged to `main` and your local `main` is up to date.
+2. From `main`: `npm run version:minor` (or patch/major).
+3. Push the bump commit **and** the tag:
+   `git push && git push --tags` or `git push --follow-tags`
+4. The tag pipeline auto-deploys to CDN — overwriting `/latest/` and creating an immutable `/v/<tag>/` URL. See [CI/CD CDN deploy](#cicd-cdn-deploy) for triggers.
+
+> **Tag from `main` only.** Pushing a tag from any branch triggers an auto-deploy of that exact commit, overwriting `/latest/` for every customer. Treat tagging as the production-deploy action.
+
 ## Style Isolation
 
-The widget renders inside a Shadow DOM — immune to host page CSS. All MUI/Emotion styles inject into the shadow root. The Roboto font is loaded via a Google Fonts `<link>` injected into `document.head` — `@font-face` so rules at document scope are visible inside shadow trees across all browsers. The container uses `z-index: 1300`; host elements that must appear above it need a higher z-index.
+The widget renders inside a Shadow DOM — immune to host page CSS. The bundled CSS (imported as a `?inline` string in `index.ts`) is injected into the shadow root as a single `<style>` tag. The Roboto font is loaded via a Google Fonts `<link>` injected into `document.head` — `@font-face` rules at document scope are visible inside shadow trees across all browsers. The container uses `z-index: 1300`; host elements that must appear above it need a higher z-index.

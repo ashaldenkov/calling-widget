@@ -1,4 +1,5 @@
 import { mapHttpError } from '../errors';
+import { eventBus, WidgetEvent } from '../eventBus';
 import { widgetState } from '../stores/widgetStore';
 
 interface RequestConfig {
@@ -38,6 +39,9 @@ export async function api<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      eventBus.emit(WidgetEvent.Unauthorized);
+    }
     const text = await response.text().catch(() => '');
     let message: string;
     try {
