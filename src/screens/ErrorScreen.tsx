@@ -1,12 +1,6 @@
-import CloseIcon from '@mui/icons-material/Close';
-import { Box, IconButton, Typography } from '@mui/material';
-
+import { CloseIcon } from '../assets/icons';
 import CallNotification from '../components/CallNotification';
-import {
-  dialogTitle,
-  dialogTitlePadding,
-  flexBetweenCenter,
-} from '../theme/styles';
+import { IconButton } from '../ui';
 
 interface ErrorScreenProps {
   onClose: () => void;
@@ -17,19 +11,23 @@ const ErrorScreen = ({
   onClose,
   message = 'Something went wrong.',
 }: ErrorScreenProps) => (
-  <>
-    <Box sx={{ ...flexBetweenCenter, ...dialogTitlePadding }}>
-      <Typography variant='h6' sx={dialogTitle}>
+  <div class='cw-screen-error'>
+    <div class='cw-screen-error__header'>
+      <h6 class='cw-text-h6 cw-screen-title cw-screen-error__title'>
         Call Information
-      </Typography>
-      <IconButton onClick={onClose} size='small' sx={{ p: 0 }}>
+      </h6>
+      <IconButton
+        size='small'
+        onClick={onClose}
+        style={{ color: 'var(--cw-text-secondary)' }}
+      >
         <CloseIcon />
       </IconButton>
-    </Box>
-    <Box sx={{ px: '24px', pb: '24px', pt: '8px' }}>
+    </div>
+    <div class='cw-screen-error__body'>
       <CallNotification type='error' message={message} />
-    </Box>
-  </>
+    </div>
+  </div>
 );
 
 export default ErrorScreen;

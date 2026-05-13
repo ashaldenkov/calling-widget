@@ -1,19 +1,8 @@
-import CloseIcon from '@mui/icons-material/Close';
-import SearchIcon from '@mui/icons-material/Search';
-import {
-  Box,
-  Button,
-  Collapse,
-  IconButton,
-  InputAdornment,
-  TextField,
-  Typography,
-} from '@mui/material';
 import { useQuery } from '@tanstack/preact-query';
 import { useState, useEffect } from 'preact/hooks';
 
 import { api } from '../api/api';
-import CallNotification from '../components/CallNotification';
+import { CancelIcon, SearchIcon } from '../assets/icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import TrunkList from '../components/TrunkList';
 import { encryptPhoneNumber } from '../crypto/phoneEncryption';
@@ -29,13 +18,8 @@ import {
   setSelectedTrunkId,
   widgetState,
 } from '../stores/widgetStore';
-import { colors } from '../theme/colors';
-import {
-  dialogTitlePadding,
-  formButtonPrimary,
-  formButtonSecondary,
-} from '../theme/styles';
 import type { TrunkResponse } from '../types/types';
+import { Button, IconButton, TextField } from '../ui';
 import { getErrorMessage, handleWidgetError } from '../utils';
 
 interface SipTrunkScreenProps {
@@ -110,15 +94,18 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
   const filteredTrunks = trunks.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase()),
   );
+  const isSelectedVisible = filteredTrunks.some(
+    (t) => t.id === localSelectedId,
+  );
 
   const handleCallConfirm = async () => {
     if (!localSelectedId) return;
     setIsStarting(true);
     setCallError(null);
     try {
-      const { data: inCallData } = await checkInCall();
-      if (inCallData?.inCall) {
-        setShowConfirmation(false);
+      const inCallResult = await checkInCall();
+      if (inCallResult.isError) throw inCallResult.error;
+      if (inCallResult.data?.inCall) {
         setCallError(ERR_CUSTOMER_IN_CALL);
         return;
       }
@@ -130,7 +117,6 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
       });
       await onConfirm(localSelectedId);
     } catch (err) {
-      setShowConfirmation(false);
       setCallError(getErrorMessage(err, ERR_CALL_START));
     } finally {
       setIsStarting(false);
@@ -138,67 +124,30 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
   };
 
   return (
-    <Box>
-      <Typography variant='h6' sx={dialogTitlePadding}>
-        SIP Trunk
-      </Typography>
+    <div class='cw-screen-sip-trunk'>
+      <h6 class='cw-text-h6 cw-screen-title'>SIP Trunk</h6>
 
-      <Box
-        sx={{
-          px: '24px',
-          pb: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}
-      >
-        <Collapse in={!!callError} timeout={300} unmountOnExit>
-          <CallNotification
-            type='error'
-            message={callError ?? ''}
-            onClose={() => setCallError(null)}
-          />
-        </Collapse>
-
+      <div class='cw-screen-body'>
         <TextField
-          size='small'
           fullWidth
           placeholder='Search'
           value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <SearchIcon
-                  fontSize='small'
-                  sx={{ mr: 1, color: 'text.secondary' }}
-                />
-              ),
-              endAdornment: search ? (
-                <InputAdornment position='end'>
-                  <IconButton
-                    size='small'
-                    onClick={() => setSearch('')}
-                    edge='end'
-                    sx={{ p: 0.5 }}
-                  >
-                    <CloseIcon fontSize='small' />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            },
-          }}
+          onInput={(e) => setSearch(e.currentTarget.value)}
+          startAdornment={<SearchIcon size={18} />}
+          endAdornment={
+            search ? (
+              <IconButton
+                size='small'
+                onClick={() => setSearch('')}
+                style={{ color: 'var(--cw-text-tertiary)' }}
+              >
+                <CancelIcon size={24} />
+              </IconButton>
+            ) : null
+          }
         />
 
-        <Box
-          sx={{
-            border: '1px solid',
-            borderColor: colors.gray800_12,
-            borderRadius: 1,
-            height: 240,
-            overflow: 'auto',
-          }}
-        >
+        <div class='cw-screen-list cw-scroll'>
           <TrunkList
             trunks={filteredTrunks}
             selectedId={localSelectedId}
@@ -206,31 +155,36 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
             isLoading={isPending}
             search={search}
           />
-        </Box>
+        </div>
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-          <Button onClick={onCancel} sx={formButtonSecondary}>
+        <div class='cw-screen-actions'>
+          <Button tone='secondary' onClick={onCancel}>
             Cancel
           </Button>
           <Button
             onClick={() => setShowConfirmation(true)}
-            disabled={!localSelectedId || isPending}
-            sx={formButtonPrimary}
+            disabled={!localSelectedId || !isSelectedVisible || isPending}
           >
             Confirm
           </Button>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       <ConfirmationDialog
         open={showConfirmation}
         title='Start a call'
         message='Are you sure you want to start a call with this client?'
-        onCancel={() => !isStarting && setShowConfirmation(false)}
+        onCancel={() => {
+          if (isStarting) return;
+          setShowConfirmation(false);
+          setCallError(null);
+        }}
         onConfirm={() => void handleCallConfirm()}
         loading={isStarting}
+        error={callError}
+        onErrorClose={() => setCallError(null)}
       />
-    </Box>
+    </div>
   );
 };
 

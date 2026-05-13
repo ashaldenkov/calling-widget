@@ -1,0 +1,31 @@
+@layer screens {
+  .cw-screen-title {
+    margin: 0;
+    padding: 16px 24px;
+    color: var(--cw-text-primary);
+  }
+
+  .cw-screen-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 24px 24px;
+  }
+
+  .cw-screen-list {
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius-control);
+    height: 240px;
+    overflow: auto;
+  }
+
+  .cw-screen-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .cw-screen-sip-trunk {
+    position: relative;
+  }
+}

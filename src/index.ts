@@ -13,6 +13,7 @@ import {
   updateAuthToken,
   widgetState,
 } from './stores/widgetStore';
+import widgetStyles from './styles/widget.css?inline';
 import {
   ActiveCallStates,
   type CallParams,
@@ -45,6 +46,13 @@ function ensureMount(): void {
   const shadow =
     container.shadowRoot ?? container.attachShadow({ mode: 'open' });
 
+  if (!shadow.querySelector('style[data-cw-styles]')) {
+    const styleEl = document.createElement('style');
+    styleEl.setAttribute('data-cw-styles', '');
+    styleEl.textContent = widgetStyles;
+    shadow.appendChild(styleEl);
+  }
+
   if (!document.querySelector('link[data-cw-font]')) {
     const fontLink = document.createElement('link');
     fontLink.rel = 'stylesheet';
@@ -57,7 +65,7 @@ function ensureMount(): void {
   const mountPoint = document.createElement('div');
   shadow.appendChild(mountPoint);
 
-  render(h(App, { shadowRoot: shadow }), mountPoint);
+  render(h(App, {}), mountPoint);
   mounted = true;
 }
 

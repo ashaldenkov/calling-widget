@@ -1,0 +1,62 @@
+@layer themes {
+  :host,
+  :host([data-cw-theme='light']) {
+    --cw-text-primary: var(--cw-color-gray-800);
+    --cw-text-secondary: var(--cw-color-gray-700);
+    --cw-text-tertiary: var(--cw-color-gray-300);
+
+    --cw-bg-default: var(--cw-color-gray-050);
+    --cw-bg-paper: var(--cw-color-white);
+
+    --cw-primary: var(--cw-color-teal-500);
+    --cw-primary-hover: var(--cw-color-teal-300);
+    --cw-primary-disabled: var(--cw-color-teal-100);
+    --cw-primary-contrast: color-mix(
+      in srgb,
+      var(--cw-color-white) 90%,
+      transparent
+    );
+
+    --cw-border: var(--cw-color-gray-800-12);
+    --cw-divider: var(--cw-color-gray-800-12);
+
+    --cw-info-bg: var(--cw-color-blue-100);
+    --cw-info-fg: var(--cw-color-blue-400);
+
+    --cw-error-bg: var(--cw-color-red-100);
+    --cw-error-fg: var(--cw-color-red-700);
+    --cw-error-active: var(--cw-color-red-300);
+
+    --cw-success: var(--cw-color-success);
+
+    --cw-backdrop: #1b1b23b2;
+  }
+
+  :host([data-cw-theme='dark']) {
+    --cw-text-primary: #ffffff;
+    --cw-text-secondary: #768194;
+    --cw-text-tertiary: #ffffff80;
+
+    --cw-bg-default: #1b1b23;
+    --cw-bg-paper: #000000;
+
+    --cw-primary: #0bb9b7;
+    --cw-primary-hover: #5fdedb;
+    --cw-primary-disabled: #ffffff4d;
+    --cw-primary-contrast: color-mix(in srgb, #ffffff 90%, transparent);
+
+    --cw-border: #ffffff1f;
+    --cw-divider: #ffffff1f;
+
+    --cw-info-bg: #0a2a3a;
+    --cw-info-fg: #4cb8e6;
+
+    --cw-error-bg: #3a0f17;
+    --cw-error-fg: #ff8399;
+    --cw-error-active: #f4002c;
+
+    --cw-success: #5fc91f;
+
+    --cw-backdrop: #9a9a9a3d;
+  }
+}

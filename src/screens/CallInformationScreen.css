@@ -1,0 +1,83 @@
+@layer screens {
+  .cw-screen-call-info__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+  }
+
+  .cw-screen-call-info__title {
+    margin: 0;
+    color: var(--cw-text-primary);
+  }
+
+  .cw-screen-call-info__body {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 24px 24px;
+  }
+
+  .cw-screen-call-info__notifs {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cw-screen-call-info__notifs:has(> *) {
+    margin-bottom: 16px;
+  }
+
+  .cw-screen-call-info__main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cw-screen-call-info__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 20px;
+  }
+
+  .cw-screen-call-info__row--country {
+    height: 42px;
+  }
+
+  .cw-screen-call-info__row--status {
+    height: 28px;
+  }
+
+  .cw-screen-call-info__country {
+    gap: 8px;
+  }
+
+  .cw-screen-call-info__label {
+    flex-shrink: 0;
+  }
+
+  .cw-screen-call-info__status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .cw-screen-call-info__call-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background-color: var(--cw-bg-default);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .cw-screen-call-info__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+}

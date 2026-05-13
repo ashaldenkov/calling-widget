@@ -1,18 +1,8 @@
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  Radio,
-  RadioGroup,
-  Stack,
-  Typography,
-} from '@mui/material';
 import { useCallback, useEffect, useRef } from 'preact/hooks';
 
 import { ERR_GENERIC } from '../errors';
-import { colors } from '../theme/colors';
-import { flexCenter, listRowSx } from '../theme/styles';
 import type { StatusOption } from '../types/types';
+import { Chip, Radio, RadioGroup, Spinner } from '../ui';
 
 import NoResultsFound from './NoResultsFound';
 
@@ -27,16 +17,6 @@ interface StatusesListProps {
   hasNextPage: boolean;
   onFetchNextPage: () => void;
 }
-
-const statusChipSx = {
-  fontWeight: 400,
-  fontSize: 14,
-  height: 28,
-  color: 'text.primary',
-  '& .MuiChip-label': {
-    px: 1,
-  },
-};
 
 const StatusesList = ({
   statuses,
@@ -75,19 +55,19 @@ const StatusesList = ({
 
   if (isLoading) {
     return (
-      <Box sx={{ ...flexCenter, height: '100%' }}>
-        <CircularProgress size={24} />
-      </Box>
+      <div class='cw-list-state'>
+        <Spinner size={24} />
+      </div>
     );
   }
 
   if (isError) {
     return (
-      <Box sx={{ ...flexCenter, height: '100%' }}>
-        <Typography variant='body2' color='error'>
+      <div class='cw-list-state'>
+        <span class='cw-text-body3' style={{ color: 'var(--cw-error-fg)' }}>
           {ERR_GENERIC}
-        </Typography>
-      </Box>
+        </span>
+      </div>
     );
   }
 
@@ -97,53 +77,30 @@ const StatusesList = ({
 
   return (
     <>
-      <RadioGroup
-        value={selectedStatusId ?? ''}
-        onChange={(e) => onSelect(e.currentTarget.value)}
-      >
-        <Stack direction='column'>
-          {statuses.map((status) => (
-            <Box
-              key={status.id}
-              onClick={() => onSelect(status.id)}
-              sx={{
-                ...listRowSx,
-                backgroundColor:
-                  selectedStatusId === status.id
-                    ? 'background.default'
-                    : 'transparent',
-              }}
-            >
-              <Radio
-                value={status.id}
-                checked={selectedStatusId === status.id}
-                size='small'
-                sx={{
-                  p: 0.5,
-                  color: colors.gray700,
-                  '&.Mui-checked': { color: colors.gray700 },
-                }}
-              />
-              <Chip
-                label={status.name}
-                size='small'
-                sx={{
-                  ...statusChipSx,
-                  backgroundColor: `${status.color}20`,
-                  border: `1px solid ${status.color}`,
-                }}
-              />
-            </Box>
-          ))}
-        </Stack>
+      <RadioGroup value={selectedStatusId} onChange={onSelect}>
+        {statuses.map((status) => (
+          <div
+            key={status.id}
+            class='cw-list-row'
+            data-selected={selectedStatusId === status.id ? '' : undefined}
+            onClick={() => onSelect(status.id)}
+          >
+            <Radio
+              name='cw-status'
+              value={status.id}
+              checked={selectedStatusId === status.id}
+            />
+            <Chip label={status.name} color={status.color} />
+          </div>
+        ))}
       </RadioGroup>
-      <Box ref={loadMoreRef}>
+      <div ref={loadMoreRef}>
         {isFetchingNextPage && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-            <CircularProgress size={20} />
-          </Box>
+          <div class='cw-list-state' style={{ padding: '16px 0' }}>
+            <Spinner size={20} />
+          </div>
         )}
-      </Box>
+      </div>
     </>
   );
 };

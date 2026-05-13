@@ -1,0 +1,6 @@
+@layer primitives {
+  .cw-radio-group {
+    display: flex;
+    flex-direction: column;
+  }
+}

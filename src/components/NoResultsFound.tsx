@@ -1,7 +1,4 @@
-import { Box, Typography } from '@mui/material';
-
 import NotFoundIcon from '../assets/NotFoundIcon';
-import { flexCenter } from '../theme/styles';
 
 interface NoResultsFoundProps {
   hasAppliedFilters?: boolean;
@@ -21,20 +18,10 @@ export const NoResultsFound = ({
     : (emptyMessage ?? DEFAULT_FILTER_MESSAGE);
 
   return (
-    <Box
-      sx={{
-        ...flexCenter,
-        flexDirection: 'column',
-        height: '100%',
-        margin: '0 auto',
-        textAlign: 'center',
-        color: 'text.secondary',
-        gap: 2,
-      }}
-    >
-      <NotFoundIcon sx={{ width: 124, height: 124 }} />
-      <Typography variant='body2'>{message}</Typography>
-    </Box>
+    <div class='cw-no-results'>
+      <NotFoundIcon />
+      <span class='cw-text-body2 cw-text-secondary'>{message}</span>
+    </div>
   );
 };
 

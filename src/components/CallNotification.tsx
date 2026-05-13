@@ -1,10 +1,7 @@
-import CloseIcon from '@mui/icons-material/Close';
-import { Box, CircularProgress, IconButton, Typography } from '@mui/material';
 import type { ComponentChildren } from 'preact';
 
-import { colors } from '../theme/colors';
-import { flexBetweenCenter } from '../theme/styles';
-import { MUTE_NOTIFICATION_DURATION } from '../utils';
+import { CloseIcon } from '../assets/icons';
+import { IconButton } from '../ui';
 
 type NotificationType = 'info' | 'error';
 
@@ -15,80 +12,56 @@ interface CallNotificationProps {
   onClose?: () => void;
 }
 
-const styleMap = {
-  info: {
-    backgroundColor: colors.blue100,
-    color: colors.blue400,
-    progressColor: colors.blue400,
-  },
-  error: {
-    backgroundColor: colors.red100,
-    color: colors.red700,
-    progressColor: colors.red700,
-  },
-};
+const RING_RADIUS = 10;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+const CountdownRing = ({ countdown }: { countdown: number }) => (
+  <span class='cw-notif__ring'>
+    <svg width='26' height='26' viewBox='0 0 26 26' aria-hidden='true'>
+      <circle
+        cx='13'
+        cy='13'
+        r={RING_RADIUS}
+        fill='none'
+        stroke='currentColor'
+        stroke-width='2'
+        opacity='0.2'
+      />
+      <circle
+        class='cw-notif__ring-progress'
+        cx='13'
+        cy='13'
+        r={RING_RADIUS}
+        fill='none'
+        stroke='currentColor'
+        stroke-width='2'
+        stroke-dasharray={RING_CIRCUMFERENCE}
+        stroke-linecap='round'
+        transform='rotate(-90 13 13) scale(1 -1) translate(0 -26)'
+        style={{ '--cw-ring-circumference': RING_CIRCUMFERENCE }}
+      />
+    </svg>
+    <span class='cw-notif__ring-label'>{countdown}</span>
+  </span>
+);
 
 const CallNotification = ({
   type,
   message,
   countdown,
   onClose,
-}: CallNotificationProps) => {
-  const styles = styleMap[type];
-
-  return (
-    <Box
-      sx={{
-        ...flexBetweenCenter,
-        backgroundColor: styles.backgroundColor,
-        borderRadius: '8px',
-        pl: '16px',
-        pr: '8px',
-        py: '8px',
-      }}
-    >
-      <Typography variant='body1' sx={{ color: styles.color }}>
-        {message}
-      </Typography>
-      {type === 'info' && countdown !== undefined && (
-        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-          <Box sx={{ transform: 'scaleX(-1)', display: 'flex' }}>
-            <CircularProgress
-              variant='determinate'
-              value={(countdown / MUTE_NOTIFICATION_DURATION) * 100}
-              size={26}
-              thickness={3}
-              sx={{ color: styles.progressColor }}
-            />
-          </Box>
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Typography
-              sx={{
-                color: styles.progressColor,
-                fontSize: 12,
-                lineHeight: 1,
-              }}
-            >
-              {countdown}
-            </Typography>
-          </Box>
-        </Box>
-      )}
-      {type === 'error' && onClose && (
-        <IconButton onClick={onClose} size='small' sx={{ p: '4px' }}>
-          <CloseIcon sx={{ color: styles.color, fontSize: 18 }} />
-        </IconButton>
-      )}
-    </Box>
-  );
-};
+}: CallNotificationProps) => (
+  <div class='cw-notif' data-type={type}>
+    <span class='cw-notif__message'>{message}</span>
+    {type === 'info' && countdown !== undefined ? (
+      <CountdownRing countdown={countdown} />
+    ) : null}
+    {type === 'error' && onClose ? (
+      <IconButton size='small' onClick={onClose}>
+        <CloseIcon size={18} />
+      </IconButton>
+    ) : null}
+  </div>
+);
 
 export default CallNotification;

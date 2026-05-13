@@ -17,11 +17,7 @@
     "version:major": "npm version major"
   },
   "dependencies": {
-    "@emotion/cache": "^11.14.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.8",
-    "@mui/material": "^7.3.8",
+    "@formkit/auto-animate": "^0.9.0",
     "@preact/signals": "^2.9.0",
     "@tanstack/preact-query": "^5.100.5",
     "countries-and-timezones": "^3.8.0",

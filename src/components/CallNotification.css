@@ -1,0 +1,60 @@
+@layer screens {
+  .cw-notif {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 8px 8px 16px;
+    border-radius: 8px;
+
+    &[data-type='info'] {
+      background-color: var(--cw-info-bg);
+      color: var(--cw-info-fg);
+    }
+
+    &[data-type='error'] {
+      background-color: var(--cw-error-bg);
+      color: var(--cw-error-fg);
+    }
+  }
+
+  .cw-notif__message {
+    font-size: 16px;
+    line-height: 1.5;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cw-notif__ring {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  @keyframes cw-ring-deplete {
+    from {
+      stroke-dashoffset: 0;
+    }
+    to {
+      stroke-dashoffset: var(--cw-ring-circumference);
+    }
+  }
+
+  .cw-notif__ring-progress {
+    animation: cw-ring-deplete 5s linear forwards;
+  }
+
+  .cw-notif__ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+  }
+}

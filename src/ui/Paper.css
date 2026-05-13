@@ -1,0 +1,12 @@
+@layer primitives {
+  .cw-paper {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 500px;
+    pointer-events: auto;
+    background-color: var(--cw-bg-paper);
+    border-radius: var(--cw-radius-widget);
+    box-shadow: var(--cw-shadow-elevated);
+  }
+}

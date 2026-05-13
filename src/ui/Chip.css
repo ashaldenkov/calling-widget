@@ -1,0 +1,14 @@
+@layer primitives {
+  .cw-chip {
+    display: inline-block;
+    vertical-align: middle;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: 100px;
+    color: var(--cw-text-primary);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

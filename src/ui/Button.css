@@ -1,0 +1,88 @@
+@layer primitives {
+  .cw-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    min-width: 100px;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: var(--cw-radius-button);
+    font-family: var(--cw-font-family);
+    cursor: pointer;
+    transition:
+      background-color var(--cw-duration-shortest) var(--cw-easing-standard),
+      opacity var(--cw-duration-shortest) var(--cw-easing-standard),
+      border-color var(--cw-duration-shortest) var(--cw-easing-standard);
+
+    &[data-full-width] {
+      width: 100%;
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--cw-primary);
+      outline-offset: 2px;
+    }
+
+    &[data-variant='contained'][data-tone='primary'] {
+      background-color: var(--cw-primary);
+      color: var(--cw-primary-contrast);
+
+      &:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+    }
+
+    &[data-variant='contained'][data-tone='secondary'] {
+      background-color: var(--cw-bg-default);
+      color: var(--cw-text-primary);
+
+      &:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+    }
+
+    &[data-variant='outlined'][data-tone='primary'] {
+      background-color: transparent;
+      border-color: var(--cw-primary);
+      color: var(--cw-primary);
+
+      &:hover:not(:disabled) {
+        background-color: color-mix(in srgb, var(--cw-primary) 8%, transparent);
+      }
+    }
+
+    &[data-variant='outlined'][data-tone='danger'] {
+      background-color: transparent;
+      border-color: var(--cw-error-fg);
+      color: var(--cw-error-fg);
+
+      &:hover:not(:disabled) {
+        background-color: color-mix(
+          in srgb,
+          var(--cw-error-fg) 8%,
+          transparent
+        );
+      }
+    }
+
+    &[data-variant='text'] {
+      background: transparent;
+      color: var(--cw-text-primary);
+      min-width: 0;
+      padding: 0 8px;
+    }
+  }
+
+  .cw-button__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
