@@ -54,6 +54,7 @@ const initialState: WidgetState = {
   statusConfirmedDuringCall: false,
   isCollapsed: true,
   compatibilityWarnings: [],
+  currentBridgeId: null,
 };
 
 function loadPersisted(): Partial<PersistedWidgetState> {
@@ -209,6 +210,10 @@ export const setIsCollapsed = (v: boolean): void => {
 
 export const setCompatibilityWarnings = (warnings: BrowserWarning[]): void => {
   widgetState.compatibilityWarnings = warnings;
+};
+
+export const setCurrentBridgeId = (id: string | null): void => {
+  widgetState.currentBridgeId = id;
 };
 
 export const resetToIdle = (): void => {

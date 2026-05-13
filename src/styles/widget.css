@@ -21,7 +21,7 @@
 @import '../components/NoResultsFound.css';
 @import '../components/TrunkList.css';
 @import '../screens/SipTrunkScreen.css';
-@import '../screens/CallInformationScreen.css';
+@import '../screens/ExpandedCallBar.css';
 @import '../screens/CollapsedCallBar.css';
 @import '../screens/ChangeStatusScreen.css';
 @import '../screens/ErrorScreen.css';
@@ -57,6 +57,13 @@
     line-height: var(--cw-line-height-h6);
     letter-spacing: var(--cw-letter-spacing-h6);
     font-weight: var(--cw-font-weight-medium);
+  }
+
+  .cw-text-body1 {
+    font-size: var(--cw-font-size-body1);
+    line-height: var(--cw-line-height-body1);
+    letter-spacing: var(--cw-letter-spacing);
+    font-weight: var(--cw-font-weight-regular);
   }
 
   .cw-text-body2 {

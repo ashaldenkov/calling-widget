@@ -6,11 +6,11 @@ import { api } from '../api/api';
 import { eventBus, WidgetEvent } from '../eventBus';
 import { useCall } from '../hooks/useCall';
 import {
-  CallInformationScreen,
   ChangeStatusScreen,
   CollapsedCallBar,
   CompatibilityWarningScreen,
   ErrorScreen,
+  ExpandedCallBar,
   SipTrunkScreen,
 } from '../screens';
 import {
@@ -32,14 +32,13 @@ export const ExternalCallWidget = () => {
     screen,
     callState,
     customerData,
-    isMicMuted,
     error,
     extCustomerId,
     isCollapsed,
     compatibilityWarnings,
   } = widgetState;
 
-  const { hangUp, setMute, startCall } = useCall();
+  const { hangUp, startCall } = useCall();
   const callParent = useRef<HTMLDivElement>(null);
   const isCalling = screen === 'calling';
 
@@ -55,11 +54,6 @@ export const ExternalCallWidget = () => {
       eventBus.emit(WidgetEvent.WidgetOpened);
     }
   }, []);
-
-  // Sync mute state to Janus handle. MicToggled event fires from setMicMuted.
-  useEffect(() => {
-    setMute(isMicMuted);
-  }, [isMicMuted, setMute]);
 
   const statusMutation = useMutation<
     UpdateStatusResponse,
@@ -102,8 +96,13 @@ export const ExternalCallWidget = () => {
   }, [hangUp]);
 
   const handleEndCall = useCallback(() => {
-    if (widgetState.callState === CallState.Failed) {
+    // Only an active call needs the hangUp -> 'hangup' -> changeStatus flow.
+    // Any non-active state (Idle/Ended/Failed, incl. a stuck post-reload
+    // calling screen with no janus handle) should let the user bail out.
+    if (!ActiveCallStates.has(widgetState.callState)) {
+      void hangUp();
       resetToIdle();
+      setIsCollapsed(true);
       return;
     }
     setIsCollapsed(true);
@@ -174,7 +173,7 @@ export const ExternalCallWidget = () => {
               onEndCall={handleEndCall}
             />
           ) : (
-            <CallInformationScreen
+            <ExpandedCallBar
               key='expanded'
               customer={customerData}
               onEndCall={handleEndCall}

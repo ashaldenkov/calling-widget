@@ -38,7 +38,7 @@ export interface StatusOption {
 }
 
 export interface StatusesResponse {
-  data: StatusOption[];
+  items: StatusOption[];
   pageInfo: {
     page: number;
     perPage: number;
@@ -129,4 +129,5 @@ export interface WidgetState {
   statusConfirmedDuringCall: boolean;
   isCollapsed: boolean;
   compatibilityWarnings: BrowserWarning[];
+  currentBridgeId: string | null;
 }

@@ -6,7 +6,12 @@ import {
   ERR_JANUS_CONNECTION,
   ERR_JANUS_NOT_LOADED,
 } from '../errors';
-import { getJanusSession } from '../stores/janusStore';
+import {
+  clearJanusHandle,
+  getJanusSession,
+  janusHandle,
+  setJanusHandle,
+} from '../stores/janusStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
 import { getErrorMessage } from '../utils';
 import {
@@ -32,7 +37,6 @@ export interface UseJanusCallOptions {
 export interface UseJanusCallReturn {
   makeCall: (payload: CallCustomerResponse) => Promise<void>;
   hangUp: () => Promise<void>;
-  setMute: (muted: boolean) => void;
 }
 
 interface AudioContextRefs {
@@ -85,8 +89,8 @@ export const useJanusCall = ({
   onMicDisconnected,
   janusWsUrl,
 }: UseJanusCallOptions): UseJanusCallReturn => {
-  const handleRef = useRef<any>(null);
   const localTrackRef = useRef<MediaStreamTrack | null>(null);
+  const activeBridgeIdRef = useRef<string | undefined>(undefined);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const unlockAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -108,13 +112,13 @@ export const useJanusCall = ({
 
   useEffect(() => {
     return () => {
-      if (handleRef.current) {
+      if (janusHandle.value) {
         try {
-          handleRef.current.detach();
+          janusHandle.value.detach();
         } catch (e) {
           console.error(`${LOG_PREFIX} cleanup detach:`, e);
         }
-        handleRef.current = null;
+        clearJanusHandle();
       }
       clearLocalTrack();
       stopAudioContext(audioRefs);
@@ -132,6 +136,7 @@ export const useJanusCall = ({
 
   const makeCall = useCallback(
     async (payload: CallCustomerResponse) => {
+      activeBridgeIdRef.current = payload.bridgeId;
       emitEvent({
         state: CallState.Calling,
         message: `Call started, Bridge ID: ${payload.bridgeId || 'N/A'}`,
@@ -160,8 +165,8 @@ export const useJanusCall = ({
           plugin: 'janus.plugin.sip',
           success: (pluginHandle: any) => {
             // set before async callbacks — success, onmessage etc.
-            // close over handleRef.current and rely on it being set by the time they fire
-            handleRef.current = pluginHandle;
+            // close over janusHandle.value and rely on it being set by the time they fire
+            setJanusHandle(pluginHandle);
 
             const registerRequest = {
               request: 'register',
@@ -170,10 +175,10 @@ export const useJanusCall = ({
               proxy: targetUri,
             };
 
-            handleRef.current.send({
+            janusHandle.value.send({
               message: registerRequest,
               success: () => {
-                handleRef.current.createOffer({
+                janusHandle.value.createOffer({
                   media: { audio: true, video: false },
                   success: (jsep: any) => {
                     const callRequest = {
@@ -181,7 +186,7 @@ export const useJanusCall = ({
                       uri: targetUri,
                     };
 
-                    handleRef.current.send({
+                    janusHandle.value.send({
                       message: callRequest,
                       jsep,
                       error: (error: any) => {
@@ -189,6 +194,7 @@ export const useJanusCall = ({
                         emitEvent({
                           state: CallState.Failed,
                           message: ERR_CALL_FAILED,
+                          bridgeId: payload.bridgeId,
                           error: error?.message || 'Unknown error',
                         });
                       },
@@ -199,6 +205,7 @@ export const useJanusCall = ({
                     emitEvent({
                       state: CallState.Failed,
                       message: ERR_JANUS_CONNECTION,
+                      bridgeId: payload.bridgeId,
                       error: error?.message || 'Unknown error',
                     });
                   },
@@ -209,19 +216,20 @@ export const useJanusCall = ({
                 emitEvent({
                   state: CallState.Failed,
                   message: ERR_JANUS_CONNECTION,
+                  bridgeId: payload.bridgeId,
                   error: error?.message || 'Unknown error',
                 });
               },
             });
 
-            handleRef.current.onmessage = (msg: any, jsep: any) => {
+            janusHandle.value.onmessage = (msg: any, jsep: any) => {
               const event = msg?.result?.event;
 
               // NOTE: Handle other events if needed
               // registered, calling, incomingcall
               if (event === 'progress') {
                 if (jsep) {
-                  handleRef.current.handleRemoteJsep({ jsep: jsep });
+                  janusHandle.value.handleRemoteJsep({ jsep: jsep });
                 }
               } else if (event === 'ringing') {
                 emitEvent({
@@ -231,11 +239,11 @@ export const useJanusCall = ({
                 });
               } else if (event === 'accepted') {
                 if (jsep) {
-                  handleRef.current.handleRemoteJsep({ jsep: jsep });
+                  janusHandle.value.handleRemoteJsep({ jsep: jsep });
                 }
 
                 const micTrack =
-                  handleRef.current?.webrtcStuff?.myStream?.getAudioTracks()[0];
+                  janusHandle.value?.webrtcStuff?.myStream?.getAudioTracks()[0];
                 if (micTrack) {
                   localTrackRef.current = micTrack;
                   micTrack.onended = () => {
@@ -254,11 +262,12 @@ export const useJanusCall = ({
                 emitEvent({
                   state: CallState.Ended,
                   message: 'Call terminated',
+                  bridgeId: payload.bridgeId,
                 });
               }
             };
 
-            handleRef.current.onremotetrack = (
+            janusHandle.value.onremotetrack = (
               track: MediaStreamTrack,
               _mid: string,
               on: boolean,
@@ -271,23 +280,24 @@ export const useJanusCall = ({
               }
             };
 
-            handleRef.current.webrtcState = (on: boolean) => {
+            janusHandle.value.webrtcState = (on: boolean) => {
               if (!on) {
                 stopAudioContext(audioRefs);
               }
             };
 
-            handleRef.current.iceState = () => {};
-            handleRef.current.mediaState = () => {};
-            handleRef.current.slowLink = () => {};
-            handleRef.current.oncleanup = () => {};
-            handleRef.current.detached = () => {};
+            janusHandle.value.iceState = () => {};
+            janusHandle.value.mediaState = () => {};
+            janusHandle.value.slowLink = () => {};
+            janusHandle.value.oncleanup = () => {};
+            janusHandle.value.detached = () => {};
           },
           error: (error: any) => {
             console.error(`${LOG_PREFIX} SIP plugin attach error:`, error);
             emitEvent({
               state: CallState.Failed,
               message: ERR_JANUS_CONNECTION,
+              bridgeId: payload.bridgeId,
               error: error?.message || 'Unknown error',
             });
           },
@@ -298,6 +308,7 @@ export const useJanusCall = ({
         emitEvent({
           state: CallState.Failed,
           message: ERR_JANUS_CONNECTION,
+          bridgeId: payload.bridgeId,
           error: rawMessage,
         });
       }
@@ -307,39 +318,28 @@ export const useJanusCall = ({
 
   const hangUp = useCallback(async () => {
     clearLocalTrack();
-    const wasActive = !!handleRef.current;
-    if (handleRef.current) {
+    const wasActive = !!janusHandle.value;
+    const bridgeId = activeBridgeIdRef.current;
+    activeBridgeIdRef.current = undefined;
+    if (janusHandle.value) {
       try {
-        handleRef.current.hangup();
-        handleRef.current.detach();
+        janusHandle.value.hangup();
+        janusHandle.value.detach();
       } catch (error) {
         console.error(`${LOG_PREFIX} Error hanging up:`, error);
       }
-      handleRef.current = null;
+      clearJanusHandle();
     }
     stopAudioContext(audioRefs);
     if (wasActive) {
-      emitEvent({ state: CallState.Ended, message: 'Call terminated' });
+      // Janus does not redeliver 'hangup' after a local detach, so the
+      // consumer relies on this synthetic Ended to advance the UI.
+      emitEvent({ state: CallState.Ended, message: 'Call terminated', bridgeId });
     }
   }, [audioRefs, clearLocalTrack, emitEvent]);
-
-  const setMute = useCallback((muted: boolean) => {
-    const handle = handleRef.current;
-    if (!handle?.webrtcStuff?.myStream) return;
-    try {
-      if (muted) {
-        handle?.muteAudio();
-      } else {
-        handle?.unmuteAudio();
-      }
-    } catch (error) {
-      console.error(`${LOG_PREFIX} Error setting mute:`, error);
-    }
-  }, []);
 
   return {
     makeCall,
     hangUp,
-    setMute,
   };
 };

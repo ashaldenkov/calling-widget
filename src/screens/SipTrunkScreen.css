@@ -15,7 +15,7 @@
   .cw-screen-list {
     border: 1px solid var(--cw-border);
     border-radius: var(--cw-radius-control);
-    height: 240px;
+    height: 248px;
     overflow: auto;
   }
 

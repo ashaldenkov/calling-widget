@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Call Widget Dev Mode</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+    />
+    <style>
+      body {
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f6f8fb;
+      }
+      #dev-controls {
+        max-width: 360px;
+      }
+      #dev-controls h1 {
+        font-size: 18px;
+        margin: 0 0 16px;
+      }
+      #call-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      #call-form label {
+        display: flex;
+        flex-direction: column;
+        font-size: 13px;
+        gap: 4px;
+      }
+      #call-form input,
+      #dev-controls button {
+        padding: 8px 12px;
+        font: inherit;
+        border-radius: 4px;
+        border: 1px solid #b6bbc5;
+        background: white;
+      }
+      #dev-controls button {
+        cursor: pointer;
+      }
+      #dev-controls button:hover {
+        background: #ebf9ff;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="dev-controls">
+      <form id="call-form">
+        <label>
+          API Key
+          <input
+            name="apiKey"
+            value="dialer_api_eit3_PEBdLR2PhFvntvjiaWbRzJw9QhN0fkAiB702Ss"
+          />
+        </label>
+        <label>
+          Ext Agent ID
+          <input name="extAgentId" value="2057291" />
+        </label>
+        <label>
+          Ext Customer ID
+          <input name="extCustomerId" value="3169" />
+        </label>
+        <label>
+          Phone Number
+          <input name="phoneNumber" type="tel" value="+447781573960" />
+        </label>
+        <button type="submit">Make call</button>
+      </form>
+      <button id="btn-dismiss" type="button">Dismiss</button>
+    </main>
+    <script type="module" src="/src/localDev.tsx"></script>
+  </body>
+</html>

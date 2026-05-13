@@ -3,13 +3,17 @@ import { useInfiniteQuery } from '@tanstack/preact-query';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 
 import { api } from '../api/api';
-import { CancelIcon, InfoOutlinedIcon, SearchIcon } from '../assets/icons';
+import { InfoOutlinedIcon } from '../assets/icons';
 import CallNotification from '../components/CallNotification';
+import CommentField, {
+  type CommentFieldHandle,
+} from '../components/CommentField';
+import SearchField from '../components/SearchField';
 import StatusesList from '../components/StatusesList';
 import { ERR_STATUS_SAVE } from '../errors';
 import { widgetState } from '../stores/widgetStore';
 import type { StatusOption, StatusesResponse } from '../types/types';
-import { Button, IconButton, TextField, Tooltip } from '../ui';
+import { Button, Tooltip } from '../ui';
 import { getErrorMessage } from '../utils';
 
 interface ChangeStatusScreenProps {
@@ -27,9 +31,10 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
     currentStatus?.id ?? null,
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [comment, setComment] = useState('');
+  const [isCommentInvalid, setIsCommentInvalid] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const commentRef = useRef<CommentFieldHandle>(null);
   const errorParent = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,7 +67,7 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
   });
 
   const allStatuses = useMemo<StatusOption[]>(() => {
-    const pages = data?.pages.flatMap((p) => p.data) ?? [];
+    const pages = data?.pages.flatMap((p) => p.items) ?? [];
     if (currentStatus && !searchQuery) {
       const rest = pages.filter((s) => s.id !== currentStatus.id);
       return [currentStatus, ...rest];
@@ -70,15 +75,15 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
     return pages;
   }, [data, currentStatus, searchQuery]);
 
-  const isCommentTooLong = comment.length > MAX_COMMENT_LENGTH;
   const isSubmitDisabled =
-    !selectedStatusId || isLoading || isError || isCommentTooLong;
+    !selectedStatusId || isLoading || isError || isCommentInvalid;
 
   const handleSave = async () => {
     if (!selectedStatusId) return;
     setIsSubmitting(true);
     setSaveError(null);
     try {
+      const comment = commentRef.current?.getValue() ?? '';
       await onSave(selectedStatusId, comment);
     } catch (err) {
       setSaveError(getErrorMessage(err, ERR_STATUS_SAVE));
@@ -103,24 +108,7 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
         </div>
 
         <div class='cw-screen-change-status__main'>
-          <TextField
-            fullWidth
-            placeholder='Search'
-            value={searchQuery}
-            onInput={(e) => setSearchQuery(e.currentTarget.value)}
-            startAdornment={<SearchIcon size={18} />}
-            endAdornment={
-              searchQuery ? (
-                <IconButton
-                  size='small'
-                  onClick={() => setSearchQuery('')}
-                  style={{ color: 'var(--cw-text-tertiary)' }}
-                >
-                  <CancelIcon size={24} />
-                </IconButton>
-              ) : null
-            }
-          />
+          <SearchField onChange={setSearchQuery} />
 
           <div class='cw-screen-list cw-scroll cw-screen-change-status__list'>
             <StatusesList
@@ -137,17 +125,10 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
           </div>
 
           <div class='cw-screen-change-status__comment'>
-            <TextField
-              label='Comment'
-              placeholder='Type your comment'
-              value={comment}
-              onInput={(e) => setComment(e.currentTarget.value)}
-              error={isCommentTooLong}
-              helperText={isCommentTooLong ? 'Too long' : undefined}
-              multiline
-              minRows={1}
-              maxRows={4}
-              fullWidth
+            <CommentField
+              ref={commentRef}
+              maxLength={MAX_COMMENT_LENGTH}
+              onValidityChange={setIsCommentInvalid}
             />
             <span class='cw-screen-change-status__hint'>
               <Tooltip title={`${MAX_COMMENT_LENGTH} length max`}>

@@ -1,23 +1,15 @@
-import { useAutoAnimate } from '@formkit/auto-animate/preact';
+import { useSignalEffect } from '@preact/signals';
 import { getCountryData } from 'countries-list';
+import { useRef } from 'preact/hooks';
 
-import {
-  ArrowDropUpIcon,
-  CallEndOutlinedIcon,
-  MicIcon,
-  MicOffIcon,
-} from '../assets/icons';
-import CallNotification from '../components/CallNotification';
+import { ArrowDropUpIcon, CallEndOutlinedIcon } from '../assets/icons';
+import CallNotificationsSlot from '../components/CallNotificationsSlot';
 import Flag from '../components/Flag';
-import {
-  setIsCollapsed,
-  setMicMuted,
-  setNotification,
-  widgetState,
-} from '../stores/widgetStore';
+import { MuteIconButton } from '../components/MuteButton';
+import { setIsCollapsed } from '../stores/widgetStore';
 import type { CustomerData } from '../types/types';
 import { Divider, IconButton, Tooltip } from '../ui';
-import { callStatus, muteNotification, useLocalTime } from '../utils';
+import { callStatus, useLocalTime } from '../utils';
 
 interface CollapsedCallBarProps {
   customer: CustomerData;
@@ -25,9 +17,20 @@ interface CollapsedCallBarProps {
 }
 
 const CollapsedCallBar = ({ customer, onEndCall }: CollapsedCallBarProps) => {
-  const { isMicMuted, notification } = widgetState;
-  const { label: callStatusLabel, duration: callDuration } = callStatus;
-  const [notifParent] = useAutoAnimate<HTMLDivElement>();
+  const statusRef = useRef<HTMLSpanElement>(null);
+
+  useSignalEffect(() => {
+    const el = statusRef.current;
+    if (!el) return;
+    const duration = callStatus.duration;
+    if (duration) {
+      el.textContent = duration;
+      el.dataset.mode = 'duration';
+    } else {
+      el.textContent = callStatus.label;
+      el.dataset.mode = 'label';
+    }
+  });
 
   const localTime = useLocalTime(customer.country);
   const customerName = `${customer.firstName} ${customer.lastName}`;
@@ -36,22 +39,7 @@ const CollapsedCallBar = ({ customer, onEndCall }: CollapsedCallBarProps) => {
 
   return (
     <div class='cw-bar'>
-      <div ref={notifParent} class='cw-bar__notifs'>
-        {muteNotification.visible && (
-          <CallNotification
-            type='info'
-            message='The microphone is muted.'
-            countdown={muteNotification.countdown}
-          />
-        )}
-        {notification && (
-          <CallNotification
-            type='error'
-            message={notification}
-            onClose={() => setNotification(null)}
-          />
-        )}
-      </div>
+      <CallNotificationsSlot class='cw-bar__notifs' />
 
       <div class='cw-bar__main'>
         <div class='cw-bar__top'>
@@ -78,25 +66,11 @@ const CollapsedCallBar = ({ customer, onEndCall }: CollapsedCallBarProps) => {
           </div>
 
           <div class='cw-bar__status'>
-            {callDuration ? (
-              <span class='cw-text-body2'>{callDuration}</span>
-            ) : (
-              <span class='cw-text-body3 cw-text-secondary'>
-                {callStatusLabel}
-              </span>
-            )}
+            <span ref={statusRef} class='cw-bar__status-text' />
           </div>
 
           <div class='cw-bar__actions'>
-            <Tooltip title={isMicMuted ? 'Unmute' : 'Mute'}>
-              <IconButton
-                size='small'
-                onClick={() => setMicMuted(!isMicMuted)}
-                style={{ color: 'var(--cw-text-secondary)' }}
-              >
-                {isMicMuted ? <MicOffIcon /> : <MicIcon />}
-              </IconButton>
-            </Tooltip>
+            <MuteIconButton />
             <Tooltip title='End call'>
               <IconButton
                 size='small'

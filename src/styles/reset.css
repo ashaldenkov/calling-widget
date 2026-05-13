@@ -2,6 +2,10 @@
   :host {
     all: initial;
     contain: content;
+  }
+
+  :host,
+  .cw-host {
     font-family: var(--cw-font-family);
     color: var(--cw-text-primary);
     line-height: 1;

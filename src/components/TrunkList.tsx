@@ -1,9 +1,53 @@
 import { useAutoAnimate } from '@formkit/auto-animate/preact';
+import { memo } from 'preact/compat';
 
 import type { TrunkListItem } from '../types/types';
 import { Radio, RadioGroup, Spinner } from '../ui';
 
 import NoResultsFound from './NoResultsFound';
+
+interface TrunkRowProps {
+  trunk: TrunkListItem;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+}
+
+const TrunkRow = memo(({ trunk, isSelected, onSelect }: TrunkRowProps) => (
+  <div
+    class='cw-list-row'
+    data-selected={isSelected ? '' : undefined}
+    onClick={() => onSelect(trunk.id)}
+  >
+    <Radio name='cw-trunk' value={trunk.id} checked={isSelected} />
+    <span class='cw-text-body3'>{trunk.name}</span>
+  </div>
+));
+
+interface TrunkListContentProps {
+  trunks: TrunkListItem[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}
+
+const TrunkListContent = ({
+  trunks,
+  selectedId,
+  onSelect,
+}: TrunkListContentProps) => {
+  const [parent] = useAutoAnimate<HTMLDivElement>();
+  return (
+    <RadioGroup value={selectedId} onChange={onSelect} parentRef={parent}>
+      {trunks.map((trunk) => (
+        <TrunkRow
+          key={trunk.id}
+          trunk={trunk}
+          isSelected={selectedId === trunk.id}
+          onSelect={onSelect}
+        />
+      ))}
+    </RadioGroup>
+  );
+};
 
 interface TrunkListProps {
   trunks: TrunkListItem[];
@@ -38,39 +82,6 @@ const TrunkList = ({
       selectedId={selectedId}
       onSelect={onSelect}
     />
-  );
-};
-
-interface TrunkListContentProps {
-  trunks: TrunkListItem[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}
-
-const TrunkListContent = ({
-  trunks,
-  selectedId,
-  onSelect,
-}: TrunkListContentProps) => {
-  const [parent] = useAutoAnimate<HTMLDivElement>();
-  return (
-    <RadioGroup value={selectedId} onChange={onSelect} parentRef={parent}>
-      {trunks.map((trunk) => (
-        <div
-          key={trunk.id}
-          class='cw-list-row'
-          data-selected={selectedId === trunk.id ? '' : undefined}
-          onClick={() => onSelect(trunk.id)}
-        >
-          <Radio
-            name='cw-trunk'
-            value={trunk.id}
-            checked={selectedId === trunk.id}
-          />
-          <span class='cw-text-body3'>{trunk.name}</span>
-        </div>
-      ))}
-    </RadioGroup>
   );
 };
 
