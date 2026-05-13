@@ -16,6 +16,7 @@ import { api } from '../api/api';
 import CallNotification from '../components/CallNotification';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import TrunkList from '../components/TrunkList';
+import { encryptPhoneNumber } from '../crypto/phoneEncryption';
 import {
   ERR_CALL_START,
   ERR_CUSTOMER_IN_CALL,
@@ -63,17 +64,21 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
       extCustomerId,
       phoneNumber,
     ],
-    queryFn: () =>
-      api<TrunkResponse>('/widget/trunks-for-call', {
+    queryFn: async () => {
+      const phoneNumberEnc = phoneNumber
+        ? await encryptPhoneNumber(phoneNumber)
+        : undefined;
+      return api<TrunkResponse>('/widget/trunks-for-call', {
         method: 'POST',
         data: {
           apiKey,
           extAgentId,
           extCustomerId,
-          phoneNumber: phoneNumber ?? undefined,
+          phoneNumberEnc,
           search: '',
         },
-      }),
+      });
+    },
   });
 
   const dialerId = data?.customerInfo.dialerId;
