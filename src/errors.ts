@@ -22,6 +22,8 @@ export const ERR_JANUS_CONNECTION = 'Connection lost. Please try again.';
 export const ERR_CALL_FAILED = 'Call failed. Please try again.';
 
 export const ERR_CUSTOMER_IN_CALL = 'This customer is already on a call.';
+export const ERR_CALL_IN_OTHER_TAB =
+  'A call is already running in another browser tab. End it there to make a new call here.';
 
 // Status
 export const ERR_STATUS_SAVE = 'Failed to save status. Please try again.';

@@ -59,7 +59,7 @@ const initialState: WidgetState = {
 
 function loadPersisted(): Partial<PersistedWidgetState> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Partial<PersistedEnvelope>;
     if (
@@ -137,7 +137,7 @@ effect(() => {
     state: snapshot,
   };
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
   } catch {
     // ignore
   }

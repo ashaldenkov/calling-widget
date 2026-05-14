@@ -26,6 +26,7 @@ import {
   CallState,
   type UpdateStatusResponse,
 } from '../types/types';
+import { releaseCall } from '../utils/tabPresence';
 
 export const ExternalCallWidget = () => {
   const {
@@ -91,6 +92,7 @@ export const ExternalCallWidget = () => {
 
   const handleDismiss = useCallback(() => {
     void hangUp();
+    releaseCall();
     resetToIdle();
     setIsCollapsed(true);
   }, [hangUp]);
@@ -101,6 +103,7 @@ export const ExternalCallWidget = () => {
     // calling screen with no janus handle) should let the user bail out.
     if (!ActiveCallStates.has(widgetState.callState)) {
       void hangUp();
+      releaseCall();
       resetToIdle();
       setIsCollapsed(true);
       return;

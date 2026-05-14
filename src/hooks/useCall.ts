@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'preact/hooks';
 import { api } from '../api/api';
 import {
   ERR_CALL_FAILED,
+  ERR_CALL_IN_OTHER_TAB,
   ERR_CALL_START,
   ERR_CUSTOMER_DATA,
   ERR_MIC_DISCONNECTED,
@@ -13,6 +14,7 @@ import {
   resetToIdle,
   setCallState,
   setCurrentBridgeId,
+  setError,
   setNotification,
   setScreen,
   setStartCallTime,
@@ -20,6 +22,7 @@ import {
 } from '../stores/widgetStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
 import { getErrorMessage, handleWidgetError } from '../utils';
+import { claimCall, releaseCall } from '../utils/tabPresence';
 
 import { type JanusCallEvent, useJanusCall } from './useJanusCall';
 
@@ -63,6 +66,7 @@ export const useCall = () => {
         break;
       case CallState.Failed: {
         if (isStale(event)) break;
+        releaseCall();
         setCallState(CallState.Failed);
         setCurrentBridgeId(null);
         const msg = event.message || ERR_CALL_FAILED;
@@ -73,6 +77,7 @@ export const useCall = () => {
       }
       case CallState.Ended: {
         if (isStale(event)) break;
+        releaseCall();
         setCallState(CallState.Ended);
         setCurrentBridgeId(null);
         setStartCallTime(null);
@@ -118,6 +123,12 @@ export const useCall = () => {
         return;
       }
 
+      if (!(await claimCall())) {
+        setError(ERR_CALL_IN_OTHER_TAB);
+        setScreen('error');
+        return;
+      }
+
       let response: CallCustomerResponse;
       try {
         response = await api<CallCustomerResponse>(
@@ -125,6 +136,7 @@ export const useCall = () => {
           { method: 'POST', data: { trunkId: Number(trunkId) } },
         );
       } catch (err) {
+        releaseCall();
         // Guards the widget from stuck of the auto-restart after reload
         handleWidgetError(getErrorMessage(err, ERR_CALL_START), err);
         return;
