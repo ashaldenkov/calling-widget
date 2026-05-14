@@ -5,7 +5,6 @@ import { api } from '../api/api';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import SearchField from '../components/SearchField';
 import TrunkList from '../components/TrunkList';
-import { encryptPhoneNumber } from '../crypto/phoneEncryption';
 import {
   ERR_CALL_START,
   ERR_CUSTOMER_IN_CALL,
@@ -21,6 +20,7 @@ import {
 import type { TrunkResponse } from '../types/types';
 import { Button } from '../ui';
 import { getErrorMessage, handleWidgetError } from '../utils';
+import { encryptPhoneNumber } from '../utils/phoneEncryption';
 
 interface SipTrunkScreenProps {
   onConfirm: (trunkId: string) => Promise<void>;

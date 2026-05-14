@@ -3,6 +3,7 @@ if (import.meta.env.DEV) {
 }
 
 import { queryClient } from './api/queryClient';
+import { ERR_CALL_IN_OTHER_TAB } from './errors';
 import { eventBus, WidgetEvent } from './eventBus';
 import { destroyJanusSession } from './stores/janusStore';
 import {
@@ -10,12 +11,14 @@ import {
   setCallParams,
   setCompatibilityWarnings,
   setConfig,
+  setError,
   setScreen,
   updateAuthToken,
   widgetState,
 } from './stores/widgetStore';
 import { ActiveCallStates } from './types/types';
 import { detectBrowserWarnings } from './utils/browserDetection';
+import { isCallOwnedByOtherTab, releaseCall } from './utils/tabPresence';
 
 const LOG_PREFIX = '[CallWidget]';
 
@@ -36,38 +39,48 @@ export function registerWidgetHandlers(ensureMount: () => void): void {
   });
 
   eventBus.on(WidgetEvent.Call, (params) => {
-    if (!mounted || !widgetState.config) {
-      console.error(`${LOG_PREFIX} Widget not initialized. Emit "init" first.`);
-      eventBus.emit(WidgetEvent.Error, { message: 'Widget not initialized' });
-      return;
-    }
-    if (
-      ActiveCallStates.has(widgetState.callState) ||
-      widgetState.screen === 'changeStatus'
-    ) {
-      console.warn(
-        `${LOG_PREFIX} Widget is busy (screen: ${widgetState.screen}), ignoring call.`,
-      );
-      return;
-    }
-    if (widgetState.screen !== 'idle') {
-      destroyJanusSession();
-      queryClient.clear();
-      resetToIdle();
-    }
-    setCallParams(params);
-    const warnings = detectBrowserWarnings();
-    if (warnings.length === 0 || sessionStorage.getItem('cw-compat-warned')) {
-      setScreen('sipTrunk');
-    } else {
-      setCompatibilityWarnings(warnings);
-      setScreen('compatibilityWarning');
-    }
+    void (async () => {
+      if (!mounted || !widgetState.config) {
+        console.error(
+          `${LOG_PREFIX} Widget not initialized. Emit "init" first.`,
+        );
+        eventBus.emit(WidgetEvent.Error, { message: 'Widget not initialized' });
+        return;
+      }
+      if (
+        ActiveCallStates.has(widgetState.callState) ||
+        widgetState.screen === 'changeStatus'
+      ) {
+        console.warn(
+          `${LOG_PREFIX} Widget is busy (screen: ${widgetState.screen}), ignoring call.`,
+        );
+        return;
+      }
+      if (await isCallOwnedByOtherTab()) {
+        setError(ERR_CALL_IN_OTHER_TAB);
+        setScreen('error');
+        return;
+      }
+      if (widgetState.screen !== 'idle') {
+        destroyJanusSession();
+        queryClient.clear();
+        resetToIdle();
+      }
+      setCallParams(params);
+      const warnings = detectBrowserWarnings();
+      if (warnings.length === 0 || sessionStorage.getItem('cw-compat-warned')) {
+        setScreen('sipTrunk');
+      } else {
+        setCompatibilityWarnings(warnings);
+        setScreen('compatibilityWarning');
+      }
+    })();
   });
 
   eventBus.on(WidgetEvent.Dismiss, () => {
     destroyJanusSession();
     queryClient.clear();
+    releaseCall();
     resetToIdle();
   });
 

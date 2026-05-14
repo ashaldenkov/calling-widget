@@ -17,6 +17,7 @@
     position: absolute;
     inset: 0;
     background-color: var(--cw-backdrop);
+    border-radius: var(--cw-radius-widget);
     opacity: 0;
     transition: opacity var(--cw-duration-shorter) var(--cw-easing-standard);
   }
