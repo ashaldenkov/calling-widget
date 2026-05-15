@@ -31,6 +31,7 @@ export interface JanusCallEvent {
 export interface UseJanusCallOptions {
   onEvent?: (event: JanusCallEvent) => void;
   onMicDisconnected?: () => void;
+  onMicRestored?: () => void;
   janusWsUrl: string;
 }
 
@@ -87,6 +88,7 @@ const playStreamWithAudioContext = (
 export const useJanusCall = ({
   onEvent,
   onMicDisconnected,
+  onMicRestored,
   janusWsUrl,
 }: UseJanusCallOptions): UseJanusCallReturn => {
   const localTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -133,6 +135,84 @@ export const useJanusCall = ({
     },
     [onEvent],
   );
+
+  const tryReplaceMicTrackRef = useRef<(() => Promise<void>) | null>(null);
+
+  const tryReplaceMicTrack = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+      const newTrack = stream.getAudioTracks()[0];
+      if (!newTrack) throw new Error('No audio track from getUserMedia');
+
+      const pc: RTCPeerConnection | undefined = (
+        janusHandle.value?.webrtcStuff as any
+      )?.pc;
+      const sender = pc?.getSenders().find((s) => s.track?.kind === 'audio');
+      if (!sender) throw new Error('No audio sender');
+
+      const wasMuted = sender.track?.enabled === false;
+
+      await sender.replaceTrack(newTrack);
+      if (wasMuted) newTrack.enabled = false;
+
+      // Keep webrtcStuff.myStream in sync with Janus's muteAudio / unmuteAudio
+      const myStream: MediaStream | undefined = (
+        janusHandle.value?.webrtcStuff as any
+      )?.myStream;
+      if (myStream) {
+        myStream.getAudioTracks().forEach((t) => myStream.removeTrack(t));
+        myStream.addTrack(newTrack);
+      }
+
+      // Rewire onended on the replacement track.
+      if (localTrackRef.current) localTrackRef.current.onended = null;
+      localTrackRef.current = newTrack;
+      newTrack.onended = () => {
+        console.warn(`${LOG_PREFIX} Replacement mic track ended`);
+        onMicDisconnected?.();
+        void tryReplaceMicTrackRef.current?.();
+      };
+
+      onMicRestored?.();
+    } catch (e) {
+      // Keep the call alive
+      console.error(`${LOG_PREFIX} replaceTrack failed:`, e);
+    }
+  }, [onMicDisconnected, onMicRestored]);
+
+  // Keep the ref in sync so recursive onended calls see the latest closure.
+  tryReplaceMicTrackRef.current = tryReplaceMicTrack;
+
+  // Listen for mic reconnect
+  useEffect(() => {
+    let status: PermissionStatus | null = null;
+    let cancelled = false;
+
+    const onChange = () => {
+      if (status?.state === 'granted' && janusHandle.value) {
+        void tryReplaceMicTrackRef.current?.();
+      }
+    };
+
+    void navigator.permissions
+      ?.query({ name: 'microphone' as PermissionName })
+      .then((s) => {
+        if (cancelled) return;
+        status = s;
+        s.addEventListener('change', onChange);
+      })
+      .catch(() => {
+        // do nothing
+      });
+
+    return () => {
+      cancelled = true;
+      status?.removeEventListener('change', onChange);
+    };
+  }, []);
 
   const makeCall = useCallback(
     async (payload: CallCustomerResponse) => {
@@ -249,6 +329,7 @@ export const useJanusCall = ({
                   micTrack.onended = () => {
                     console.warn(`${LOG_PREFIX} Microphone track ended`);
                     onMicDisconnected?.();
+                    void tryReplaceMicTrack();
                   };
                 }
 
@@ -313,7 +394,7 @@ export const useJanusCall = ({
         });
       }
     },
-    [emitEvent, audioRefs, janusWsUrl, onMicDisconnected],
+    [emitEvent, audioRefs, janusWsUrl, onMicDisconnected, tryReplaceMicTrack],
   );
 
   const hangUp = useCallback(async () => {
@@ -334,7 +415,11 @@ export const useJanusCall = ({
     if (wasActive) {
       // Janus does not redeliver 'hangup' after a local detach, so the
       // consumer relies on this synthetic Ended to advance the UI.
-      emitEvent({ state: CallState.Ended, message: 'Call terminated', bridgeId });
+      emitEvent({
+        state: CallState.Ended,
+        message: 'Call terminated',
+        bridgeId,
+      });
     }
   }, [audioRefs, clearLocalTrack, emitEvent]);
 

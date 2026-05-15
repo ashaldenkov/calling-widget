@@ -97,9 +97,14 @@ export const useCall = () => {
     eventBus.emit(WidgetEvent.Error, { message: ERR_MIC_DISCONNECTED });
   }, []);
 
+  const handleMicRestored = useCallback(() => {
+    setNotification(null);
+  }, []);
+
   const { makeCall, hangUp } = useJanusCall({
     onEvent: handleEvent,
     onMicDisconnected: handleMicDisconnected,
+    onMicRestored: handleMicRestored,
     janusWsUrl: config?.janusWsUrl ?? '',
   });
 
