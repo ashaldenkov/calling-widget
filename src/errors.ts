@@ -2,7 +2,7 @@
 export const ERR_MIC_PERMISSION =
   'Microphone permission denied. Please allow access in your browser settings.';
 export const ERR_MIC_DISCONNECTED =
-  'Microphone disconnected. Please reconnect your device.';
+  'No microphone detected. Please connect your device.';
 
 // Network / API
 export const ERR_SESSION_EXPIRED = 'Session expired. Please refresh the page.';
