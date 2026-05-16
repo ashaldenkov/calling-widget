@@ -2,16 +2,12 @@ import type { RefObject } from 'preact';
 import { useCallback, useMemo, useRef, useEffect } from 'preact/hooks';
 
 import {
-  ERR_CALL_FAILED,
-  ERR_JANUS_CONNECTION,
-  ERR_JANUS_NOT_LOADED,
-} from '../errors';
-import {
   clearJanusHandle,
   getJanusSession,
   janusHandle,
   setJanusHandle,
 } from '../stores/janusStore';
+import { type CallFailReason, reasonFromQ850 } from '../types/callFailure';
 import { CallState, type CallCustomerResponse } from '../types/types';
 import { getErrorMessage } from '../utils';
 import {
@@ -23,9 +19,10 @@ const LOG_PREFIX = '[Janus Call]';
 
 export interface JanusCallEvent {
   state: CallState;
-  message: string;
+  message?: string; // diagnostic / fallback copy. Failed events carry `reason` for user-facing text.
   bridgeId?: string;
   error?: string;
+  reason?: CallFailReason; // present whenever state === CallState.Failed
 }
 
 export interface UseJanusCallOptions {
@@ -231,11 +228,8 @@ export const useJanusCall = ({
         console.error(`${LOG_PREFIX} getJanusSession:`, error);
         emitEvent({
           state: CallState.Failed,
-          message:
-            rawMessage === 'Janus library not available'
-              ? ERR_JANUS_NOT_LOADED
-              : ERR_JANUS_CONNECTION,
           error: rawMessage,
+          reason: { kind: 'TechnicalError', details: 'janus_init' },
         });
         return;
       }
@@ -273,9 +267,12 @@ export const useJanusCall = ({
                         console.error(`${LOG_PREFIX} call error:`, error);
                         emitEvent({
                           state: CallState.Failed,
-                          message: ERR_CALL_FAILED,
                           bridgeId: payload.bridgeId,
                           error: error?.message || 'Unknown error',
+                          reason: {
+                            kind: 'TechnicalError',
+                            details: 'janus_runtime',
+                          },
                         });
                       },
                     });
@@ -284,9 +281,12 @@ export const useJanusCall = ({
                     console.error(`${LOG_PREFIX} WebRTC offer error:`, error);
                     emitEvent({
                       state: CallState.Failed,
-                      message: ERR_JANUS_CONNECTION,
                       bridgeId: payload.bridgeId,
                       error: error?.message || 'Unknown error',
+                      reason: {
+                        kind: 'TechnicalError',
+                        details: 'janus_mic_failed',
+                      },
                     });
                   },
                 });
@@ -295,9 +295,9 @@ export const useJanusCall = ({
                 console.error(`${LOG_PREFIX} registration error:`, error);
                 emitEvent({
                   state: CallState.Failed,
-                  message: ERR_JANUS_CONNECTION,
                   bridgeId: payload.bridgeId,
                   error: error?.message || 'Unknown error',
+                  reason: { kind: 'TechnicalError', details: 'janus_register' },
                 });
               },
             });
@@ -340,11 +340,22 @@ export const useJanusCall = ({
                 });
               } else if (event === 'hangup') {
                 stopAudioContext(audioRefs);
-                emitEvent({
-                  state: CallState.Ended,
-                  message: 'Call terminated',
-                  bridgeId: payload.bridgeId,
-                });
+                const cause: unknown = msg?.result?.code;
+                const failReason = reasonFromQ850(cause);
+                if (failReason) {
+                  emitEvent({
+                    state: CallState.Failed,
+                    bridgeId: payload.bridgeId,
+                    reason: failReason,
+                    error: msg?.result?.reason ?? `Q.850 ${String(cause)}`,
+                  });
+                } else {
+                  emitEvent({
+                    state: CallState.Ended,
+                    message: 'Call terminated',
+                    bridgeId: payload.bridgeId,
+                  });
+                }
               }
             };
 
@@ -377,9 +388,9 @@ export const useJanusCall = ({
             console.error(`${LOG_PREFIX} SIP plugin attach error:`, error);
             emitEvent({
               state: CallState.Failed,
-              message: ERR_JANUS_CONNECTION,
               bridgeId: payload.bridgeId,
               error: error?.message || 'Unknown error',
+              reason: { kind: 'TechnicalError', details: 'janus_init' },
             });
           },
         });
@@ -388,9 +399,9 @@ export const useJanusCall = ({
         console.error(`${LOG_PREFIX} Janus connection error:`, error);
         emitEvent({
           state: CallState.Failed,
-          message: ERR_JANUS_CONNECTION,
           bridgeId: payload.bridgeId,
           error: rawMessage,
+          reason: { kind: 'TechnicalError', details: 'janus_init' },
         });
       }
     },

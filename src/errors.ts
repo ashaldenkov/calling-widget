@@ -16,9 +16,6 @@ export const ERR_CALL_START = 'Failed to start the call. Please try again.';
 export const ERR_CUSTOMER_DATA = 'Customer data not available.';
 
 // Janus / WebRTC
-export const ERR_JANUS_NOT_LOADED =
-  'Call setup failed. Please refresh the page.';
-export const ERR_JANUS_CONNECTION = 'Connection lost. Please try again.';
 export const ERR_CALL_FAILED = 'Call failed. Please try again.';
 
 export const ERR_CUSTOMER_IN_CALL = 'This customer is already on a call.';
@@ -31,6 +28,21 @@ export const ERR_STATUS_SAVE = 'Failed to save status. Please try again.';
 // Render (error boundary)
 export const ERR_RENDER =
   'A rendering error occurred. Please close and reopen the widget.';
+
+import { TechnicalError, type CallFailReason } from './types/callFailure';
+
+export const getFailureMessage = (reason: CallFailReason): string => {
+  switch (reason.kind) {
+    case 'Busy':
+      return 'Line busy.';
+    case 'NoAnswer':
+      return 'No answer.';
+    case 'ProviderError':
+      return `Provider error (${reason.cause}). Please try again.`;
+    case 'TechnicalError':
+      return TechnicalError[reason.details];
+  }
+};
 
 // Maps an HTTP error response to a message.
 

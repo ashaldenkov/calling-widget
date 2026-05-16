@@ -7,7 +7,7 @@ import {
   ERR_CALL_START,
   ERR_CUSTOMER_DATA,
   ERR_MIC_DISCONNECTED,
-  ERR_MIC_PERMISSION,
+  getFailureMessage,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import {
@@ -69,7 +69,9 @@ export const useCall = () => {
         releaseCall();
         setCallState(CallState.Failed);
         setCurrentBridgeId(null);
-        const msg = event.message || ERR_CALL_FAILED;
+        const msg = event.reason
+          ? getFailureMessage(event.reason)
+          : event.message || ERR_CALL_FAILED;
         setNotification(msg);
         emitStateChange(CallState.Failed);
         eventBus.emit(WidgetEvent.Error, { message: msg });
@@ -107,17 +109,6 @@ export const useCall = () => {
     onMicRestored: handleMicRestored,
     janusWsUrl: config?.janusWsUrl ?? '',
   });
-
-  const checkMicPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-      return true;
-    } catch (err) {
-      handleWidgetError(ERR_MIC_PERMISSION, err);
-      return false;
-    }
-  }, []);
 
   const startCallWithTrunk = useCallback(
     async (trunkId: string) => {
@@ -162,11 +153,9 @@ export const useCall = () => {
 
   const startCall = useCallback(
     async (trunkId: string) => {
-      const micAllowed = await checkMicPermission();
-      if (!micAllowed) return;
       await startCallWithTrunk(trunkId);
     },
-    [checkMicPermission, startCallWithTrunk],
+    [startCallWithTrunk],
   );
 
   // Auto-restart after page reload mid-call.
