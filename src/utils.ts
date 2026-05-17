@@ -148,12 +148,12 @@ effect(() => {
     return;
   }
 
+  let id: ReturnType<typeof setTimeout>;
   const tick = () => {
-    callStatus.duration = formatDuration(
-      Math.floor((Date.now() - start) / 1000),
-    );
+    const elapsed = Date.now() - start;
+    callStatus.duration = formatDuration(Math.floor(elapsed / 1000));
+    id = setTimeout(tick, 1000 - (elapsed % 1000));
   };
   tick();
-  const id = setInterval(tick, 1000);
-  return () => clearInterval(id);
+  return () => clearTimeout(id);
 });
