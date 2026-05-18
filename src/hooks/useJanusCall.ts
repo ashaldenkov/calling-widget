@@ -193,6 +193,7 @@ export const useJanusCall = ({
     });
   }, []);
 
+  const hangUpRef = useRef<(() => Promise<void>) | null>(null);
   const tryReplaceMicTrackRef = useRef<(() => Promise<void>) | null>(null);
 
   const tryReplaceMicTrack = useCallback(async () => {
@@ -332,6 +333,11 @@ export const useJanusCall = ({
                     janusHandle.value.send({
                       message: callRequest,
                       jsep,
+                      success: () => {
+                        if (localTearDownRef.current) {
+                          void hangUpRef.current?.();
+                        }
+                      },
                       error: (error: any) => {
                         console.error(`${LOG_PREFIX} call error:`, error);
                         emitEvent({
@@ -538,6 +544,8 @@ export const useJanusCall = ({
       });
     }
   }, [audioRefs, clearLocalTrack, emitEvent, onRecoveryState]);
+
+  hangUpRef.current = hangUp;
 
   return {
     makeCall,
