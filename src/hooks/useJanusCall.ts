@@ -307,8 +307,8 @@ export const useJanusCall = ({
         janusSession.attach({
           plugin: 'janus.plugin.sip',
           success: (pluginHandle: any) => {
-            // set before async callbacks — success, onmessage etc.
-            // close over janusHandle.value and rely on it being set by the time they fire
+            // Callbacks below reference janusHandle.value — set it before
+            // Janus can invoke them.
             setJanusHandle(pluginHandle);
 
             const registerRequest = {
@@ -370,106 +370,6 @@ export const useJanusCall = ({
                 });
               },
             });
-
-            janusHandle.value.onmessage = (msg: any, jsep: any) => {
-              const event = msg?.result?.event;
-
-              // NOTE: Handle other events if needed
-              // registered, calling, incomingcall
-              if (event === 'progress') {
-                if (jsep) {
-                  janusHandle.value.handleRemoteJsep({ jsep: jsep });
-                }
-              } else if (event === 'ringing') {
-                emitEvent({
-                  state: CallState.Ringing,
-                  message: `Call ringing, Bridge ID: ${payload.bridgeId || 'N/A'}`,
-                  bridgeId: payload.bridgeId,
-                });
-              } else if (event === 'accepted') {
-                if (jsep) {
-                  janusHandle.value.handleRemoteJsep({ jsep: jsep });
-                }
-
-                const micTrack =
-                  janusHandle.value?.webrtcStuff?.myStream?.getAudioTracks()[0];
-                if (micTrack) {
-                  localTrackRef.current = micTrack;
-                  micTrack.onended = () => {
-                    console.warn(`${LOG_PREFIX} Microphone track ended`);
-                    onMicDisconnected?.();
-                    void tryReplaceMicTrack();
-                  };
-                }
-
-                emitEvent({
-                  state: CallState.Connected,
-                  message: `Call answered, Bridge ID: ${payload.bridgeId || 'N/A'}`,
-                  bridgeId: payload.bridgeId,
-                });
-                dispatchRecoveryRef.current?.({ type: 'call_answered' });
-              } else if (event === 'hangup') {
-                stopAudioContext(audioRefs);
-                const cause: unknown = msg?.result?.code;
-                const failReason = reasonFromQ850(cause);
-                if (failReason) {
-                  emitEvent({
-                    state: CallState.Failed,
-                    bridgeId: payload.bridgeId,
-                    reason: failReason,
-                    error: msg?.result?.reason ?? `Q.850 ${String(cause)}`,
-                  });
-                } else {
-                  emitEvent({
-                    state: CallState.Ended,
-                    message: 'Call terminated',
-                    bridgeId: payload.bridgeId,
-                  });
-                }
-              }
-            };
-
-            janusHandle.value.onremotetrack = (
-              track: MediaStreamTrack,
-              _mid: string,
-              on: boolean,
-            ) => {
-              if (on && track.kind === 'audio') {
-                const stream = new MediaStream([track]);
-                playStreamWithAudioContext(stream, audioRefs);
-              } else if (!on) {
-                stopAudioContext(audioRefs);
-              }
-            };
-
-            janusHandle.value.webrtcState = (on: boolean) => {
-              if (!on) {
-                stopAudioContext(audioRefs);
-              }
-            };
-
-            janusHandle.value.iceState = (state: string) => {
-              if (state === 'disconnected') {
-                dispatchRecoveryRef.current?.({ type: 'ice_disconnected' });
-              } else if (state === 'failed' || state === 'closed') {
-                dispatchRecoveryRef.current?.({ type: 'ice_failed' });
-              } else if (state === 'connected' || state === 'completed') {
-                dispatchRecoveryRef.current?.({ type: 'ice_connected' });
-              }
-            };
-            janusHandle.value.connectionState = (state: string) => {
-              if (state === 'failed') {
-                dispatchRecoveryRef.current?.({ type: 'ice_failed' });
-              }
-            };
-            janusHandle.value.oncleanup = () => {
-              if (localTearDownRef.current) return;
-              dispatchRecoveryRef.current?.({ type: 'ws_dead' });
-            };
-            janusHandle.value.detached = () => {
-              if (localTearDownRef.current) return;
-              dispatchRecoveryRef.current?.({ type: 'ws_dead' });
-            };
           },
           error: (error: any) => {
             console.error(`${LOG_PREFIX} SIP plugin attach error:`, error);
@@ -479,6 +379,102 @@ export const useJanusCall = ({
               error: error?.message || 'Unknown error',
               reason: { kind: 'TechnicalError', details: 'janus_init' },
             });
+          },
+          onmessage: (msg: any, jsep: any) => {
+            const event = msg?.result?.event;
+
+            // NOTE: Handle other events if needed
+            // registered, calling, incomingcall
+            if (event === 'progress') {
+              if (jsep) {
+                janusHandle.value.handleRemoteJsep({ jsep: jsep });
+              }
+            } else if (event === 'ringing') {
+              emitEvent({
+                state: CallState.Ringing,
+                message: `Call ringing, Bridge ID: ${payload.bridgeId || 'N/A'}`,
+                bridgeId: payload.bridgeId,
+              });
+            } else if (event === 'accepted') {
+              if (jsep) {
+                janusHandle.value.handleRemoteJsep({ jsep: jsep });
+              }
+
+              const micTrack =
+                janusHandle.value?.webrtcStuff?.myStream?.getAudioTracks()[0];
+              if (micTrack) {
+                localTrackRef.current = micTrack;
+                micTrack.onended = () => {
+                  console.warn(`${LOG_PREFIX} Microphone track ended`);
+                  onMicDisconnected?.();
+                  void tryReplaceMicTrack();
+                };
+              }
+
+              emitEvent({
+                state: CallState.Connected,
+                message: `Call answered, Bridge ID: ${payload.bridgeId || 'N/A'}`,
+                bridgeId: payload.bridgeId,
+              });
+              dispatchRecoveryRef.current?.({ type: 'call_answered' });
+            } else if (event === 'hangup') {
+              stopAudioContext(audioRefs);
+              const cause: unknown = msg?.result?.code;
+              const failReason = reasonFromQ850(cause);
+              if (failReason) {
+                emitEvent({
+                  state: CallState.Failed,
+                  bridgeId: payload.bridgeId,
+                  reason: failReason,
+                  error: msg?.result?.reason ?? `Q.850 ${String(cause)}`,
+                });
+              } else {
+                emitEvent({
+                  state: CallState.Ended,
+                  message: 'Call terminated',
+                  bridgeId: payload.bridgeId,
+                });
+              }
+            }
+          },
+          onremotetrack: (
+            track: MediaStreamTrack,
+            _mid: string,
+            on: boolean,
+          ) => {
+            if (on && track.kind === 'audio') {
+              const stream = new MediaStream([track]);
+              playStreamWithAudioContext(stream, audioRefs);
+            } else if (!on) {
+              stopAudioContext(audioRefs);
+            }
+          },
+          webrtcState: (on: boolean) => {
+            if (!on) {
+              stopAudioContext(audioRefs);
+            }
+          },
+          iceState: (state: string) => {
+            if (state === 'disconnected') {
+              dispatchRecoveryRef.current?.({ type: 'ice_disconnected' });
+            } else if (state === 'failed' || state === 'closed') {
+              dispatchRecoveryRef.current?.({ type: 'ice_failed' });
+            } else if (state === 'connected' || state === 'completed') {
+              dispatchRecoveryRef.current?.({ type: 'ice_connected' });
+            }
+          },
+          connectionState: (state: string) => {
+            if (state === 'failed') {
+              dispatchRecoveryRef.current?.({ type: 'ice_failed' });
+            }
+          },
+          oncleanup: () => {
+            if (localTearDownRef.current) return;
+            dispatchRecoveryRef.current?.({ type: 'ws_dead' });
+          },
+          detached: () => {
+            if (localTearDownRef.current) return;
+            dispatchRecoveryRef.current?.({ type: 'ws_dead' });
           },
         });
       } catch (error) {
