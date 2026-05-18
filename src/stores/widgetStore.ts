@@ -55,6 +55,7 @@ const initialState: WidgetState = {
   isCollapsed: true,
   compatibilityWarnings: [],
   currentBridgeId: null,
+  recoveryStatus: 'healthy',
 };
 
 function loadPersisted(): Partial<PersistedWidgetState> {
@@ -214,6 +215,13 @@ export const setCompatibilityWarnings = (warnings: BrowserWarning[]): void => {
 
 export const setCurrentBridgeId = (id: string | null): void => {
   widgetState.currentBridgeId = id;
+};
+
+export const setRecoveryStatus = (
+  status: WidgetState['recoveryStatus'],
+): void => {
+  if (widgetState.recoveryStatus === status) return;
+  widgetState.recoveryStatus = status;
 };
 
 export const resetToIdle = (): void => {

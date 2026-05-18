@@ -130,4 +130,5 @@ export interface WidgetState {
   isCollapsed: boolean;
   compatibilityWarnings: BrowserWarning[];
   currentBridgeId: string | null;
+  recoveryStatus: 'healthy' | 'unstable' | 'failed';
 }

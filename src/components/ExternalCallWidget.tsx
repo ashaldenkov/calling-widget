@@ -98,18 +98,30 @@ export const ExternalCallWidget = () => {
   }, [hangUp]);
 
   const handleEndCall = useCallback(() => {
-    // Only an active call needs the hangUp -> 'hangup' -> changeStatus flow.
-    // Any non-active state (Idle/Ended/Failed, incl. a stuck post-reload
-    // calling screen with no janus handle) should let the user bail out.
-    if (!ActiveCallStates.has(widgetState.callState)) {
-      void hangUp();
-      releaseCall();
-      resetToIdle();
+    const cs = widgetState.callState;
+
+    if (ActiveCallStates.has(cs)) {
       setIsCollapsed(true);
+      void hangUp();
       return;
     }
-    setIsCollapsed(true);
+
+    if (cs === CallState.Failed && widgetState.startCallTime !== null) {
+      void hangUp();
+      releaseCall();
+      if (widgetState.statusConfirmedDuringCall) {
+        resetToIdle();
+        setIsCollapsed(true);
+      } else {
+        setScreen('changeStatus');
+      }
+      return;
+    }
+
     void hangUp();
+    releaseCall();
+    resetToIdle();
+    setIsCollapsed(true);
   }, [hangUp]);
 
   const handleStatusSave = useCallback(

@@ -7,6 +7,7 @@ import {
   ERR_CALL_START,
   ERR_CUSTOMER_DATA,
   ERR_MIC_DISCONNECTED,
+  NOTIF_RECONNECTING,
   getFailureMessage,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
@@ -16,6 +17,7 @@ import {
   setCurrentBridgeId,
   setError,
   setNotification,
+  setRecoveryStatus,
   setScreen,
   setStartCallTime,
   widgetState,
@@ -75,6 +77,7 @@ export const useCall = () => {
         setNotification(msg);
         emitStateChange(CallState.Failed);
         eventBus.emit(WidgetEvent.Error, { message: msg });
+        // Stay on the calling screen showing Failed + notification
         break;
       }
       case CallState.Ended: {
@@ -103,10 +106,26 @@ export const useCall = () => {
     setNotification(null);
   }, []);
 
+  const handleRecoveryState = useCallback(
+    (state: 'healthy' | 'unstable' | 'failed') => {
+      setRecoveryStatus(state);
+      if (state === 'unstable') {
+        setNotification(NOTIF_RECONNECTING);
+      } else if (
+        state === 'healthy' &&
+        widgetState.notification === NOTIF_RECONNECTING
+      ) {
+        setNotification(null);
+      }
+    },
+    [],
+  );
+
   const { makeCall, hangUp } = useJanusCall({
     onEvent: handleEvent,
     onMicDisconnected: handleMicDisconnected,
     onMicRestored: handleMicRestored,
+    onRecoveryState: handleRecoveryState,
     janusWsUrl: config?.janusWsUrl ?? '',
   });
 

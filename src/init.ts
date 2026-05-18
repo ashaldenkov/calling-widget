@@ -47,12 +47,9 @@ export function registerWidgetHandlers(ensureMount: () => void): void {
         eventBus.emit(WidgetEvent.Error, { message: 'Widget not initialized' });
         return;
       }
-      if (
-        ActiveCallStates.has(widgetState.callState) ||
-        widgetState.screen === 'changeStatus'
-      ) {
+      if (ActiveCallStates.has(widgetState.callState)) {
         console.warn(
-          `${LOG_PREFIX} Widget is busy (screen: ${widgetState.screen}), ignoring call.`,
+          `${LOG_PREFIX} Widget is busy (state: ${widgetState.callState}), ignoring call.`,
         );
         return;
       }

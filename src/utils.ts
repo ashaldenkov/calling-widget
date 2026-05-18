@@ -135,6 +135,13 @@ export const callStatus = deepSignal<{
 effect(() => {
   const callState = widgetState.callState;
   const start = widgetState.startCallTime;
+  const inRecovery = widgetState.recoveryStatus === 'unstable';
+
+  if (callState === CallState.Connected && inRecovery) {
+    callStatus.label = 'Connecting...';
+    callStatus.duration = null;
+    return;
+  }
 
   callStatus.label = getCallStateLabel(callState);
 

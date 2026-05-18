@@ -17,6 +17,8 @@ export const ERR_CUSTOMER_DATA = 'Customer data not available.';
 
 // Janus / WebRTC
 export const ERR_CALL_FAILED = 'Call failed. Please try again.';
+export const NOTIF_RECONNECTING =
+  "Connection lost. We're trying to reconnect you now.";
 
 export const ERR_CUSTOMER_IN_CALL = 'This customer is already on a call.';
 export const ERR_CALL_IN_OTHER_TAB =
