@@ -12,14 +12,11 @@ import {
   widgetState,
 } from './stores/widgetStore';
 import { CallState } from './types/types';
+import { RecoveryState } from './utils/callRecovery';
 
-export const getErrorMessage = (
-  error: unknown,
-  fallback = 'Unknown error',
-): string => (error instanceof Error ? error.message : fallback);
-
-export const handleWidgetError = (message: string, error?: unknown): void => {
-  console.error('[Widget]', error ?? message);
+export const handleWidgetError = (fallback: string, error?: unknown): void => {
+  const message = error instanceof Error ? error.message : fallback;
+  console.error('[Widget]', error ?? fallback);
   if (widgetState.screen !== 'error') {
     setNotification(null);
     setError(message);
@@ -135,6 +132,13 @@ export const callStatus = deepSignal<{
 effect(() => {
   const callState = widgetState.callState;
   const start = widgetState.startCallTime;
+  const inRecovery = widgetState.recoveryStatus === RecoveryState.Unstable;
+
+  if (callState === CallState.Connected && inRecovery) {
+    callStatus.label = 'Connecting...';
+    callStatus.duration = null;
+    return;
+  }
 
   callStatus.label = getCallStateLabel(callState);
 
@@ -148,12 +152,12 @@ effect(() => {
     return;
   }
 
+  let id: ReturnType<typeof setTimeout>;
   const tick = () => {
-    callStatus.duration = formatDuration(
-      Math.floor((Date.now() - start) / 1000),
-    );
+    const elapsed = Date.now() - start;
+    callStatus.duration = formatDuration(Math.floor(elapsed / 1000));
+    id = setTimeout(tick, 1000 - (elapsed % 1000));
   };
   tick();
-  const id = setInterval(tick, 1000);
-  return () => clearInterval(id);
+  return () => clearTimeout(id);
 });

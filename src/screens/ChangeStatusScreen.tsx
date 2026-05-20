@@ -10,11 +10,10 @@ import CommentField, {
 } from '../components/CommentField';
 import SearchField from '../components/SearchField';
 import StatusesList from '../components/StatusesList';
-import { ERR_STATUS_SAVE } from '../errors';
+import { ERR_GENERIC, getErrorMessage } from '../errors';
 import { widgetState } from '../stores/widgetStore';
 import type { StatusOption, StatusesResponse } from '../types/types';
 import { Button, Tooltip } from '../ui';
-import { getErrorMessage } from '../utils';
 
 interface ChangeStatusScreenProps {
   onSave: (statusId: string, comment: string) => Promise<void>;
@@ -86,7 +85,7 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
       const comment = commentRef.current?.getValue() ?? '';
       await onSave(selectedStatusId, comment);
     } catch (err) {
-      setSaveError(getErrorMessage(err, ERR_STATUS_SAVE));
+      setSaveError(getErrorMessage(err, ERR_GENERIC));
     } finally {
       setIsSubmitting(false);
     }

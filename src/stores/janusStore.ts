@@ -3,7 +3,7 @@ import { deepSignal } from 'deepsignal';
 import Janus from 'janus-gateway';
 import adapter from 'webrtc-adapter';
 
-import { getErrorMessage } from '../utils';
+import { getErrorMessage } from '../errors';
 
 import { widgetState } from './widgetStore';
 
@@ -49,6 +49,26 @@ function ensureJanusLib(): Promise<void> {
   });
 }
 
+const sessionDestroyListeners = new Set<() => void>();
+
+export function onJanusSessionDestroyed(fn: () => void): () => void {
+  sessionDestroyListeners.add(fn);
+  return () => sessionDestroyListeners.delete(fn);
+}
+
+function handleSessionLost() {
+  janusState.session = null;
+  janusState.status = 'idle';
+  initPromise = null;
+  [...sessionDestroyListeners].forEach((fn) => {
+    try {
+      fn();
+    } catch (e) {
+      console.error(`${LOG_PREFIX} session destroyed listener:`, e);
+    }
+  });
+}
+
 export function getJanusSession(serverUrl: string): Promise<JanusSession> {
   if (janusState.session) {
     return Promise.resolve(janusState.session);
@@ -77,11 +97,23 @@ export function getJanusSession(serverUrl: string): Promise<JanusSession> {
           },
           error: (error: any) => {
             const message = error?.message ?? 'Unknown error';
+            if (janusState.status === 'ready') {
+              // Connection lost AFTER successful init — notify listeners,
+              // don't reject (the original promise already resolved).
+              console.error(`${LOG_PREFIX} session error after init:`, error);
+              janusState.error = message;
+              handleSessionLost();
+              return;
+            }
             janusState.status = 'error';
             janusState.session = null;
             janusState.error = message;
             initPromise = null;
             reject(new Error(message));
+          },
+          destroyed: () => {
+            console.warn(`${LOG_PREFIX} session destroyed`);
+            handleSessionLost();
           },
         });
       });
@@ -121,6 +153,11 @@ export function setJanusHandle(handle: any): void {
 export function clearJanusHandle(): void {
   janusHandle.value = null;
 }
+
+// Module-level entry point for non-React code (eventBus's init.ts)
+export const hangUpRef: { current: (() => Promise<void>) | null } = {
+  current: null,
+};
 
 effect(() => {
   const handle = janusHandle.value;

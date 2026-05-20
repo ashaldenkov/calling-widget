@@ -6,10 +6,12 @@ import ConfirmationDialog from '../components/ConfirmationDialog';
 import SearchField from '../components/SearchField';
 import TrunkList from '../components/TrunkList';
 import {
-  ERR_CALL_START,
   ERR_CUSTOMER_IN_CALL,
+  ERR_GENERIC,
+  ERR_MIC_DISCONNECTED,
+  ERR_MIC_PERMISSION,
   ERR_NO_TRUNKS,
-  ERR_TRUNK_FETCH,
+  getErrorMessage,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import {
@@ -19,13 +21,29 @@ import {
 } from '../stores/widgetStore';
 import type { TrunkResponse } from '../types/types';
 import { Button } from '../ui';
-import { getErrorMessage, handleWidgetError } from '../utils';
+import { handleWidgetError } from '../utils';
+import {
+  type MicPermissionState,
+  probeMicPermission,
+} from '../utils/micPermission';
 import { encryptPhoneNumber } from '../utils/phoneEncryption';
 
 interface SipTrunkScreenProps {
   onConfirm: (trunkId: string) => Promise<void>;
   onCancel: () => void;
 }
+
+const micErrorMessage = (state: MicPermissionState): string | null => {
+  switch (state) {
+    case 'granted':
+      return null;
+    case 'denied':
+      return ERR_MIC_PERMISSION;
+    case 'noDevice':
+    case 'failed':
+      return ERR_MIC_DISCONNECTED;
+  }
+};
 
 const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
   const { extAgentId, apiKey, extCustomerId, phoneNumber, selectedTrunkId } =
@@ -87,7 +105,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
   }, [data]);
 
   useEffect(() => {
-    if (isError) handleWidgetError(ERR_TRUNK_FETCH, error);
+    if (isError) handleWidgetError(ERR_GENERIC, error);
   }, [isError, error]);
 
   const trunks = data?.trunks ?? [];
@@ -103,6 +121,11 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
     setIsStarting(true);
     setCallError(null);
     try {
+      const micError = micErrorMessage(await probeMicPermission());
+      if (micError) {
+        setCallError(micError);
+        return;
+      }
       const inCallResult = await checkInCall();
       if (inCallResult.isError) throw inCallResult.error;
       if (inCallResult.data?.inCall) {
@@ -117,7 +140,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
       });
       await onConfirm(localSelectedId);
     } catch (err) {
-      setCallError(getErrorMessage(err, ERR_CALL_START));
+      setCallError(getErrorMessage(err, ERR_GENERIC));
     } finally {
       setIsStarting(false);
     }

@@ -1,10 +1,9 @@
 import { Component, type ComponentChildren } from 'preact';
 
-import { ERR_RENDER } from '../errors';
+import { ERR_RENDER, getErrorMessage } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import ErrorScreen from '../screens/ErrorScreen';
 import { resetToIdle } from '../stores/widgetStore';
-import { getErrorMessage } from '../utils';
 
 interface State {
   error: Error | null;

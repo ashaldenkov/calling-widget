@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef } from 'preact/hooks';
 
 import { api } from '../api/api';
 import {
-  ERR_CALL_FAILED,
   ERR_CALL_IN_OTHER_TAB,
-  ERR_CALL_START,
   ERR_CUSTOMER_DATA,
+  ERR_GENERIC,
   ERR_MIC_DISCONNECTED,
-  ERR_MIC_PERMISSION,
+  NOTIF_RECONNECTING,
+  getFailureMessage,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import {
@@ -16,17 +16,19 @@ import {
   setCurrentBridgeId,
   setError,
   setNotification,
+  setRecoveryStatus,
   setScreen,
   setStartCallTime,
   widgetState,
 } from '../stores/widgetStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
-import { getErrorMessage, handleWidgetError } from '../utils';
+import { handleWidgetError } from '../utils';
+import { RecoveryState } from '../utils/callRecovery';
 import { claimCall, releaseCall } from '../utils/tabPresence';
 
 import { type JanusCallEvent, useJanusCall } from './useJanusCall';
 
-export const useCall = () => {
+export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
   const { config, screen, callState, customerData, selectedTrunkId } =
     widgetState;
 
@@ -69,10 +71,13 @@ export const useCall = () => {
         releaseCall();
         setCallState(CallState.Failed);
         setCurrentBridgeId(null);
-        const msg = event.message || ERR_CALL_FAILED;
+        const msg = event.reason
+          ? getFailureMessage(event.reason)
+          : event.message || ERR_GENERIC;
         setNotification(msg);
         emitStateChange(CallState.Failed);
         eventBus.emit(WidgetEvent.Error, { message: msg });
+        // Stay on the calling screen showing Failed + notification
         break;
       }
       case CallState.Ended: {
@@ -97,24 +102,31 @@ export const useCall = () => {
     eventBus.emit(WidgetEvent.Error, { message: ERR_MIC_DISCONNECTED });
   }, []);
 
-  const { makeCall, hangUp } = useJanusCall({
-    onEvent: handleEvent,
-    onMicDisconnected: handleMicDisconnected,
-    janusWsUrl: config?.janusWsUrl ?? '',
-  });
+  const handleMicRestored = useCallback(() => {
+    setNotification(null);
+  }, []);
 
-  const checkMicPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-      return true;
-    } catch (err) {
-      handleWidgetError(ERR_MIC_PERMISSION, err);
-      return false;
+  const handleRecoveryState = useCallback((state: RecoveryState) => {
+    setRecoveryStatus(state);
+    if (state === RecoveryState.Unstable) {
+      setNotification(NOTIF_RECONNECTING);
+    } else if (
+      state === RecoveryState.Healthy &&
+      widgetState.notification === NOTIF_RECONNECTING
+    ) {
+      setNotification(null);
     }
   }, []);
 
-  const startCallWithTrunk = useCallback(
+  const { makeCall } = useJanusCall({
+    onEvent: handleEvent,
+    onMicDisconnected: handleMicDisconnected,
+    onMicRestored: handleMicRestored,
+    onRecoveryState: handleRecoveryState,
+    janusWsUrl: config?.janusWsUrl ?? '',
+  });
+
+  const startCall = useCallback(
     async (trunkId: string) => {
       const { customerData } = widgetState;
 
@@ -138,7 +150,7 @@ export const useCall = () => {
       } catch (err) {
         releaseCall();
         // Guards the widget from stuck of the auto-restart after reload
-        handleWidgetError(getErrorMessage(err, ERR_CALL_START), err);
+        handleWidgetError(ERR_GENERIC, err);
         return;
       }
 
@@ -153,15 +165,6 @@ export const useCall = () => {
       await makeCall(response);
     },
     [makeCall],
-  );
-
-  const startCall = useCallback(
-    async (trunkId: string) => {
-      const micAllowed = await checkMicPermission();
-      if (!micAllowed) return;
-      await startCallWithTrunk(trunkId);
-    },
-    [checkMicPermission, startCallWithTrunk],
   );
 
   // Auto-restart after page reload mid-call.
@@ -181,5 +184,5 @@ export const useCall = () => {
     }
   }, [screen, callState, customerData, selectedTrunkId, config, startCall]);
 
-  return { hangUp, startCall };
+  return startCall;
 };
