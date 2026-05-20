@@ -5,7 +5,7 @@ if (import.meta.env.DEV) {
 import { queryClient } from './api/queryClient';
 import { ERR_CALL_IN_OTHER_TAB } from './errors';
 import { eventBus, WidgetEvent } from './eventBus';
-import { destroyJanusSession } from './stores/janusStore';
+import { destroyJanusSession, hangUpRef } from './stores/janusStore';
 import {
   resetToIdle,
   setCallParams,
@@ -65,7 +65,7 @@ export function registerWidgetHandlers(ensureMount: () => void): void {
       }
       setCallParams(params);
       const warnings = detectBrowserWarnings();
-      if (warnings.length === 0 || sessionStorage.getItem('cw-compat-warned')) {
+      if (warnings.length === 0 || localStorage.getItem('cw-compat-warned')) {
         setScreen('sipTrunk');
       } else {
         setCompatibilityWarnings(warnings);
@@ -75,6 +75,7 @@ export function registerWidgetHandlers(ensureMount: () => void): void {
   });
 
   eventBus.on(WidgetEvent.Dismiss, () => {
+    void hangUpRef.current?.();
     destroyJanusSession();
     queryClient.clear();
     releaseCall();

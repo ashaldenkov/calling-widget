@@ -1,17 +1,18 @@
 import type { RefObject } from 'preact';
 import { useCallback, useMemo, useRef, useEffect } from 'preact/hooks';
 
+import { getErrorMessage } from '../errors';
 import {
   clearJanusHandle,
   destroyJanusSession,
   getJanusSession,
+  hangUpRef,
   janusHandle,
   onJanusSessionDestroyed,
   setJanusHandle,
 } from '../stores/janusStore';
 import { type CallFailReason, reasonFromQ850 } from '../types/callFailure';
 import { CallState, type CallCustomerResponse } from '../types/types';
-import { getErrorMessage } from '../utils';
 import {
   createUnlockAudioElement,
   ensureAudioContext,
@@ -130,6 +131,24 @@ export const useJanusCall = ({
 
   const recoveryRef = useRef<RecoveryState>(initialRecoveryState);
   const localTearDownRef = useRef(false);
+  const callSentRef = useRef(false);
+
+  const cleanupHandle = useCallback(() => {
+    localTearDownRef.current = true;
+    callSentRef.current = false;
+    activeBridgeIdRef.current = undefined;
+    clearLocalTrack();
+    const handle = janusHandle.value;
+    if (handle) {
+      try {
+        handle.detach();
+      } catch (e) {
+        console.error(`${LOG_PREFIX} cleanupHandle detach failed:`, e);
+      }
+      clearJanusHandle();
+    }
+    stopAudioContext(audioRefs);
+  }, [audioRefs, clearLocalTrack]);
 
   useEffect(() => {
     return () => {
@@ -193,7 +212,6 @@ export const useJanusCall = ({
     });
   }, []);
 
-  const hangUpRef = useRef<(() => Promise<void>) | null>(null);
   const tryReplaceMicTrackRef = useRef<(() => Promise<void>) | null>(null);
 
   const tryReplaceMicTrack = useCallback(async () => {
@@ -278,11 +296,64 @@ export const useJanusCall = ({
     };
   }, []);
 
+  const hangUp = useCallback(async () => {
+    localTearDownRef.current = true;
+    recoveryRef.current = initialRecoveryState;
+    onRecoveryState?.('healthy');
+    clearLocalTrack();
+    const bridgeId = activeBridgeIdRef.current;
+
+    // SIP hangup is a no-op until the call is sent (Janus has no SIP dialog yet).
+    if (!callSentRef.current) {
+      if (bridgeId !== undefined || janusHandle.value) {
+        emitEvent({
+          state: CallState.Ended,
+          message: 'Call terminated',
+          bridgeId,
+        });
+      }
+      activeBridgeIdRef.current = undefined;
+      return;
+    }
+
+    const wasActive = !!janusHandle.value || bridgeId !== undefined;
+    activeBridgeIdRef.current = undefined;
+    if (janusHandle.value) {
+      try {
+        janusHandle.value.send({ message: { request: 'hangup' } });
+      } catch (error) {
+        console.error(`${LOG_PREFIX} SIP hangup send failed:`, error);
+      }
+      try {
+        janusHandle.value.hangup();
+      } catch (error) {
+        console.error(`${LOG_PREFIX} PC hangup failed:`, error);
+      }
+      try {
+        janusHandle.value.detach();
+      } catch (error) {
+        console.error(`${LOG_PREFIX} detach failed:`, error);
+      }
+      clearJanusHandle();
+    }
+    stopAudioContext(audioRefs);
+    if (wasActive) {
+      // Janus does not redeliver 'hangup' after a local detach, so the
+      // consumer relies on this synthetic Ended to advance the UI.
+      emitEvent({
+        state: CallState.Ended,
+        message: 'Call terminated',
+        bridgeId,
+      });
+    }
+  }, [audioRefs, clearLocalTrack, emitEvent, onRecoveryState]);
+
   const makeCall = useCallback(
     async (payload: CallCustomerResponse) => {
       recoveryRef.current = initialRecoveryState;
       onRecoveryState?.('healthy');
       localTearDownRef.current = false;
+      callSentRef.current = false;
       activeBridgeIdRef.current = payload.bridgeId;
       emitEvent({
         state: CallState.Calling,
@@ -305,12 +376,14 @@ export const useJanusCall = ({
       }
 
       try {
+        // Capture the handle in a local closure so the nested callbacks
+        // survive hangup race that clears the global handle
+        let pluginHandle: any = null;
         janusSession.attach({
           plugin: 'janus.plugin.sip',
-          success: (pluginHandle: any) => {
-            // Callbacks below reference janusHandle.value — set it before
-            // Janus can invoke them.
-            setJanusHandle(pluginHandle);
+          success: (handle: any) => {
+            pluginHandle = handle;
+            setJanusHandle(handle); // expose the handle for external consumers
 
             const registerRequest = {
               request: 'register',
@@ -319,10 +392,10 @@ export const useJanusCall = ({
               proxy: targetUri,
             };
 
-            janusHandle.value.send({
+            pluginHandle.send({
               message: registerRequest,
               success: () => {
-                janusHandle.value.createOffer({
+                pluginHandle.createOffer({
                   media: { audio: true, video: false },
                   success: (jsep: any) => {
                     const callRequest = {
@@ -330,12 +403,12 @@ export const useJanusCall = ({
                       uri: targetUri,
                     };
 
-                    janusHandle.value.send({
+                    pluginHandle.send({
                       message: callRequest,
                       jsep,
                       success: () => {
                         if (localTearDownRef.current) {
-                          void hangUpRef.current?.();
+                          void hangUp();
                         }
                       },
                       error: (error: any) => {
@@ -349,8 +422,10 @@ export const useJanusCall = ({
                             details: 'janus_runtime',
                           },
                         });
+                        cleanupHandle();
                       },
                     });
+                    callSentRef.current = true;
                   },
                   error: (error: any) => {
                     console.error(`${LOG_PREFIX} WebRTC offer error:`, error);
@@ -363,6 +438,7 @@ export const useJanusCall = ({
                         details: 'janus_mic_failed',
                       },
                     });
+                    cleanupHandle();
                   },
                 });
               },
@@ -374,6 +450,7 @@ export const useJanusCall = ({
                   error: error?.message || 'Unknown error',
                   reason: { kind: 'TechnicalError', details: 'janus_register' },
                 });
+                cleanupHandle();
               },
             });
           },
@@ -385,6 +462,7 @@ export const useJanusCall = ({
               error: error?.message || 'Unknown error',
               reason: { kind: 'TechnicalError', details: 'janus_init' },
             });
+            cleanupHandle();
           },
           onmessage: (msg: any, jsep: any) => {
             const event = msg?.result?.event;
@@ -393,7 +471,7 @@ export const useJanusCall = ({
             // registered, calling, incomingcall
             if (event === 'progress') {
               if (jsep) {
-                janusHandle.value.handleRemoteJsep({ jsep: jsep });
+                pluginHandle?.handleRemoteJsep({ jsep: jsep });
               }
             } else if (event === 'ringing') {
               emitEvent({
@@ -403,11 +481,11 @@ export const useJanusCall = ({
               });
             } else if (event === 'accepted') {
               if (jsep) {
-                janusHandle.value.handleRemoteJsep({ jsep: jsep });
+                pluginHandle?.handleRemoteJsep({ jsep: jsep });
               }
 
               const micTrack =
-                janusHandle.value?.webrtcStuff?.myStream?.getAudioTracks()[0];
+                pluginHandle?.webrtcStuff?.myStream?.getAudioTracks()[0];
               if (micTrack) {
                 localTrackRef.current = micTrack;
                 micTrack.onended = () => {
@@ -424,7 +502,6 @@ export const useJanusCall = ({
               });
               dispatchRecoveryRef.current?.({ type: 'call_answered' });
             } else if (event === 'hangup') {
-              stopAudioContext(audioRefs);
               const cause: unknown = msg?.result?.code;
               const failReason = reasonFromQ850(cause);
               if (failReason) {
@@ -441,6 +518,7 @@ export const useJanusCall = ({
                   bridgeId: payload.bridgeId,
                 });
               }
+              cleanupHandle();
             }
           },
           onremotetrack: (
@@ -492,6 +570,7 @@ export const useJanusCall = ({
           error: rawMessage,
           reason: { kind: 'TechnicalError', details: 'janus_init' },
         });
+        cleanupHandle();
       }
     },
     [
@@ -501,49 +580,10 @@ export const useJanusCall = ({
       onMicDisconnected,
       onRecoveryState,
       tryReplaceMicTrack,
+      hangUp,
+      cleanupHandle,
     ],
   );
-
-  const hangUp = useCallback(async () => {
-    localTearDownRef.current = true;
-    recoveryRef.current = initialRecoveryState;
-    onRecoveryState?.('healthy');
-    clearLocalTrack();
-    // Treat an in-flight setup (bridgeId set but janusHandle not yet attached)
-    // as active, so the synthetic Ended event below fires and the UI returns
-    // to idle instead of getting stuck on the Calling screen.
-    const bridgeId = activeBridgeIdRef.current;
-    const wasActive = !!janusHandle.value || bridgeId !== undefined;
-    activeBridgeIdRef.current = undefined;
-    if (janusHandle.value) {
-      try {
-        janusHandle.value.send({ message: { request: 'hangup' } });
-      } catch (error) {
-        console.error(`${LOG_PREFIX} SIP hangup send failed:`, error);
-      }
-      try {
-        janusHandle.value.hangup();
-      } catch (error) {
-        console.error(`${LOG_PREFIX} PC hangup failed:`, error);
-      }
-      try {
-        janusHandle.value.detach();
-      } catch (error) {
-        console.error(`${LOG_PREFIX} detach failed:`, error);
-      }
-      clearJanusHandle();
-    }
-    stopAudioContext(audioRefs);
-    if (wasActive) {
-      // Janus does not redeliver 'hangup' after a local detach, so the
-      // consumer relies on this synthetic Ended to advance the UI.
-      emitEvent({
-        state: CallState.Ended,
-        message: 'Call terminated',
-        bridgeId,
-      });
-    }
-  }, [audioRefs, clearLocalTrack, emitEvent, onRecoveryState]);
 
   hangUpRef.current = hangUp;
 

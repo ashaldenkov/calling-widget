@@ -3,7 +3,7 @@ import { deepSignal } from 'deepsignal';
 import Janus from 'janus-gateway';
 import adapter from 'webrtc-adapter';
 
-import { getErrorMessage } from '../utils';
+import { getErrorMessage } from '../errors';
 
 import { widgetState } from './widgetStore';
 
@@ -153,6 +153,11 @@ export function setJanusHandle(handle: any): void {
 export function clearJanusHandle(): void {
   janusHandle.value = null;
 }
+
+// Module-level entry point for non-React code (eventBus's init.ts)
+export const hangUpRef: { current: (() => Promise<void>) | null } = {
+  current: null,
+};
 
 effect(() => {
   const handle = janusHandle.value;

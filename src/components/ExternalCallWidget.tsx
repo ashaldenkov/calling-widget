@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from 'preact/hooks';
 
 import { api } from '../api/api';
 import { eventBus, WidgetEvent } from '../eventBus';
-import { useCall } from '../hooks/useCall';
+import { useStartCall } from '../hooks/useStartCall';
 import {
   ChangeStatusScreen,
   CollapsedCallBar,
@@ -13,6 +13,7 @@ import {
   ExpandedCallBar,
   SipTrunkScreen,
 } from '../screens';
+import { hangUpRef } from '../stores/janusStore';
 import {
   resetToIdle,
   setCustomerData,
@@ -39,7 +40,7 @@ export const ExternalCallWidget = () => {
     compatibilityWarnings,
   } = widgetState;
 
-  const { hangUp, startCall } = useCall();
+  const startCall = useStartCall();
   const callParent = useRef<HTMLDivElement>(null);
   const isCalling = screen === 'calling';
 
@@ -91,23 +92,23 @@ export const ExternalCallWidget = () => {
   });
 
   const handleDismiss = useCallback(() => {
-    void hangUp();
+    void hangUpRef.current?.();
     releaseCall();
     resetToIdle();
     setIsCollapsed(true);
-  }, [hangUp]);
+  }, []);
 
   const handleEndCall = useCallback(() => {
     const cs = widgetState.callState;
 
     if (ActiveCallStates.has(cs)) {
       setIsCollapsed(true);
-      void hangUp();
+      void hangUpRef.current?.();
       return;
     }
 
     if (cs === CallState.Failed && widgetState.startCallTime !== null) {
-      void hangUp();
+      void hangUpRef.current?.();
       releaseCall();
       if (widgetState.statusConfirmedDuringCall) {
         resetToIdle();
@@ -118,11 +119,11 @@ export const ExternalCallWidget = () => {
       return;
     }
 
-    void hangUp();
+    void hangUpRef.current?.();
     releaseCall();
     resetToIdle();
     setIsCollapsed(true);
-  }, [hangUp]);
+  }, []);
 
   const handleStatusSave = useCallback(
     async (statusId: string, comment: string) => {
@@ -161,7 +162,7 @@ export const ExternalCallWidget = () => {
         <CompatibilityWarningScreen
           warnings={compatibilityWarnings}
           onContinue={() => {
-            sessionStorage.setItem('cw-compat-warned', '1');
+            localStorage.setItem('cw-compat-warned', '1');
             setScreen('sipTrunk');
           }}
           onDismiss={handleDismiss}

@@ -13,13 +13,9 @@ import {
 } from './stores/widgetStore';
 import { CallState } from './types/types';
 
-export const getErrorMessage = (
-  error: unknown,
-  fallback = 'Unknown error',
-): string => (error instanceof Error ? error.message : fallback);
-
-export const handleWidgetError = (message: string, error?: unknown): void => {
-  console.error('[Widget]', error ?? message);
+export const handleWidgetError = (fallback: string, error?: unknown): void => {
+  const message = error instanceof Error ? error.message : fallback;
+  console.error('[Widget]', error ?? fallback);
   if (widgetState.screen !== 'error') {
     setNotification(null);
     setError(message);

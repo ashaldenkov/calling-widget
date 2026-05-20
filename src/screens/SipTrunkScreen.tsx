@@ -6,12 +6,12 @@ import ConfirmationDialog from '../components/ConfirmationDialog';
 import SearchField from '../components/SearchField';
 import TrunkList from '../components/TrunkList';
 import {
-  ERR_CALL_START,
   ERR_CUSTOMER_IN_CALL,
+  ERR_GENERIC,
   ERR_MIC_DISCONNECTED,
   ERR_MIC_PERMISSION,
   ERR_NO_TRUNKS,
-  ERR_TRUNK_FETCH,
+  getErrorMessage,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import {
@@ -21,7 +21,7 @@ import {
 } from '../stores/widgetStore';
 import type { TrunkResponse } from '../types/types';
 import { Button } from '../ui';
-import { getErrorMessage, handleWidgetError } from '../utils';
+import { handleWidgetError } from '../utils';
 import {
   type MicPermissionState,
   probeMicPermission,
@@ -105,7 +105,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
   }, [data]);
 
   useEffect(() => {
-    if (isError) handleWidgetError(ERR_TRUNK_FETCH, error);
+    if (isError) handleWidgetError(ERR_GENERIC, error);
   }, [isError, error]);
 
   const trunks = data?.trunks ?? [];
@@ -140,7 +140,7 @@ const SipTrunkScreen = ({ onConfirm, onCancel }: SipTrunkScreenProps) => {
       });
       await onConfirm(localSelectedId);
     } catch (err) {
-      setCallError(getErrorMessage(err, ERR_CALL_START));
+      setCallError(getErrorMessage(err, ERR_GENERIC));
     } finally {
       setIsStarting(false);
     }

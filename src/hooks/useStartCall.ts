@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef } from 'preact/hooks';
 
 import { api } from '../api/api';
 import {
-  ERR_CALL_FAILED,
   ERR_CALL_IN_OTHER_TAB,
-  ERR_CALL_START,
   ERR_CUSTOMER_DATA,
+  ERR_GENERIC,
   ERR_MIC_DISCONNECTED,
   NOTIF_RECONNECTING,
   getFailureMessage,
@@ -23,12 +22,12 @@ import {
   widgetState,
 } from '../stores/widgetStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
-import { getErrorMessage, handleWidgetError } from '../utils';
+import { handleWidgetError } from '../utils';
 import { claimCall, releaseCall } from '../utils/tabPresence';
 
 import { type JanusCallEvent, useJanusCall } from './useJanusCall';
 
-export const useCall = () => {
+export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
   const { config, screen, callState, customerData, selectedTrunkId } =
     widgetState;
 
@@ -73,7 +72,7 @@ export const useCall = () => {
         setCurrentBridgeId(null);
         const msg = event.reason
           ? getFailureMessage(event.reason)
-          : event.message || ERR_CALL_FAILED;
+          : event.message || ERR_GENERIC;
         setNotification(msg);
         emitStateChange(CallState.Failed);
         eventBus.emit(WidgetEvent.Error, { message: msg });
@@ -121,7 +120,7 @@ export const useCall = () => {
     [],
   );
 
-  const { makeCall, hangUp } = useJanusCall({
+  const { makeCall } = useJanusCall({
     onEvent: handleEvent,
     onMicDisconnected: handleMicDisconnected,
     onMicRestored: handleMicRestored,
@@ -129,7 +128,7 @@ export const useCall = () => {
     janusWsUrl: config?.janusWsUrl ?? '',
   });
 
-  const startCallWithTrunk = useCallback(
+  const startCall = useCallback(
     async (trunkId: string) => {
       const { customerData } = widgetState;
 
@@ -153,7 +152,7 @@ export const useCall = () => {
       } catch (err) {
         releaseCall();
         // Guards the widget from stuck of the auto-restart after reload
-        handleWidgetError(getErrorMessage(err, ERR_CALL_START), err);
+        handleWidgetError(ERR_GENERIC, err);
         return;
       }
 
@@ -168,13 +167,6 @@ export const useCall = () => {
       await makeCall(response);
     },
     [makeCall],
-  );
-
-  const startCall = useCallback(
-    async (trunkId: string) => {
-      await startCallWithTrunk(trunkId);
-    },
-    [startCallWithTrunk],
   );
 
   // Auto-restart after page reload mid-call.
@@ -194,5 +186,5 @@ export const useCall = () => {
     }
   }, [screen, callState, customerData, selectedTrunkId, config, startCall]);
 
-  return { hangUp, startCall };
+  return startCall;
 };
