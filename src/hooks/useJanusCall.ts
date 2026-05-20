@@ -19,7 +19,7 @@ import {
 } from '../utils/callAudioUtils';
 import {
   type RecoverySignal,
-  type RecoveryState,
+  RecoveryState,
   initialState as initialRecoveryState,
   reduce,
 } from '../utils/callRecovery';
@@ -122,8 +122,8 @@ export const useJanusCall = ({
       localTrackRef.current.onended = null;
       try {
         localTrackRef.current.stop();
-      } catch {
-        // ignore
+      } catch (e) {
+        console.warn(`${LOG_PREFIX} mic track stop failed:`, e);
       }
       localTrackRef.current = null;
     }
@@ -183,7 +183,7 @@ export const useJanusCall = ({
       if (next === prev) return;
       recoveryRef.current = next;
       onRecoveryState?.(next);
-      if (next === 'failed') {
+      if (next === RecoveryState.Failed) {
         emitEvent({
           state: CallState.Failed,
           reason: { kind: 'TechnicalError', details: 'recovery_exhausted' },
@@ -191,8 +191,8 @@ export const useJanusCall = ({
         });
         try {
           destroyJanusSession();
-        } catch {
-          // ignore
+        } catch (e) {
+          console.warn(`${LOG_PREFIX} destroyJanusSession failed:`, e);
         }
         clearJanusHandle();
       }
@@ -236,8 +236,8 @@ export const useJanusCall = ({
       // Release the old mic
       try {
         oldTrack?.stop();
-      } catch {
-        // ignore
+      } catch (e) {
+        console.warn(`${LOG_PREFIX} old mic track stop failed:`, e);
       }
 
       // Keep webrtcStuff.myStream in sync with Janus's muteAudio / unmuteAudio
@@ -299,7 +299,7 @@ export const useJanusCall = ({
   const hangUp = useCallback(async () => {
     localTearDownRef.current = true;
     recoveryRef.current = initialRecoveryState;
-    onRecoveryState?.('healthy');
+    onRecoveryState?.(RecoveryState.Healthy);
     clearLocalTrack();
     const bridgeId = activeBridgeIdRef.current;
 
@@ -351,7 +351,7 @@ export const useJanusCall = ({
   const makeCall = useCallback(
     async (payload: CallCustomerResponse) => {
       recoveryRef.current = initialRecoveryState;
-      onRecoveryState?.('healthy');
+      onRecoveryState?.(RecoveryState.Healthy);
       localTearDownRef.current = false;
       callSentRef.current = false;
       activeBridgeIdRef.current = payload.bridgeId;
@@ -538,16 +538,22 @@ export const useJanusCall = ({
               stopAudioContext(audioRefs);
             }
           },
-          iceState: (state: string) => {
-            if (state === 'disconnected') {
-              dispatchRecoveryRef.current?.({ type: 'ice_disconnected' });
-            } else if (state === 'failed' || state === 'closed') {
-              dispatchRecoveryRef.current?.({ type: 'ice_failed' });
-            } else if (state === 'connected' || state === 'completed') {
-              dispatchRecoveryRef.current?.({ type: 'ice_connected' });
+          iceState: (state: RTCIceConnectionState) => {
+            switch (state) {
+              case 'disconnected':
+                dispatchRecoveryRef.current?.({ type: 'ice_disconnected' });
+                break;
+              case 'failed':
+              case 'closed':
+                dispatchRecoveryRef.current?.({ type: 'ice_failed' });
+                break;
+              case 'connected':
+              case 'completed':
+                dispatchRecoveryRef.current?.({ type: 'ice_connected' });
+                break;
             }
           },
-          connectionState: (state: string) => {
+          connectionState: (state: RTCPeerConnectionState) => {
             if (state === 'failed') {
               dispatchRecoveryRef.current?.({ type: 'ice_failed' });
             }

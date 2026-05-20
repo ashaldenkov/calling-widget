@@ -23,6 +23,7 @@ import {
 } from '../stores/widgetStore';
 import { CallState, type CallCustomerResponse } from '../types/types';
 import { handleWidgetError } from '../utils';
+import { RecoveryState } from '../utils/callRecovery';
 import { claimCall, releaseCall } from '../utils/tabPresence';
 
 import { type JanusCallEvent, useJanusCall } from './useJanusCall';
@@ -105,20 +106,17 @@ export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
     setNotification(null);
   }, []);
 
-  const handleRecoveryState = useCallback(
-    (state: 'healthy' | 'unstable' | 'failed') => {
-      setRecoveryStatus(state);
-      if (state === 'unstable') {
-        setNotification(NOTIF_RECONNECTING);
-      } else if (
-        state === 'healthy' &&
-        widgetState.notification === NOTIF_RECONNECTING
-      ) {
-        setNotification(null);
-      }
-    },
-    [],
-  );
+  const handleRecoveryState = useCallback((state: RecoveryState) => {
+    setRecoveryStatus(state);
+    if (state === RecoveryState.Unstable) {
+      setNotification(NOTIF_RECONNECTING);
+    } else if (
+      state === RecoveryState.Healthy &&
+      widgetState.notification === NOTIF_RECONNECTING
+    ) {
+      setNotification(null);
+    }
+  }, []);
 
   const { makeCall } = useJanusCall({
     onEvent: handleEvent,

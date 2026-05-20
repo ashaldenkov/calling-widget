@@ -12,6 +12,7 @@ import {
   widgetState,
 } from './stores/widgetStore';
 import { CallState } from './types/types';
+import { RecoveryState } from './utils/callRecovery';
 
 export const handleWidgetError = (fallback: string, error?: unknown): void => {
   const message = error instanceof Error ? error.message : fallback;
@@ -131,7 +132,7 @@ export const callStatus = deepSignal<{
 effect(() => {
   const callState = widgetState.callState;
   const start = widgetState.startCallTime;
-  const inRecovery = widgetState.recoveryStatus === 'unstable';
+  const inRecovery = widgetState.recoveryStatus === RecoveryState.Unstable;
 
   if (callState === CallState.Connected && inRecovery) {
     callStatus.label = 'Connecting...';

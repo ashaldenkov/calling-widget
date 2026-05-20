@@ -2,6 +2,7 @@ import { MicIcon, MicOffIcon } from '../assets/icons';
 import { setMicMuted, widgetState } from '../stores/widgetStore';
 import { CallState } from '../types/types';
 import { Button, IconButton, Tooltip } from '../ui';
+import { RecoveryState } from '../utils/callRecovery';
 
 const toggleMute = () => setMicMuted(!widgetState.isMicMuted);
 
@@ -9,7 +10,7 @@ const isMuteDisabled = () =>
   widgetState.callState === CallState.Failed ||
   widgetState.callState === CallState.Ended ||
   widgetState.callState === CallState.Idle ||
-  widgetState.recoveryStatus === 'unstable';
+  widgetState.recoveryStatus === RecoveryState.Unstable;
 
 export const MuteIconButton = () => {
   const { isMicMuted } = widgetState;

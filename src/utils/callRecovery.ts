@@ -1,4 +1,8 @@
-export type RecoveryState = 'healthy' | 'unstable' | 'failed';
+export enum RecoveryState {
+  Healthy = 'healthy',
+  Unstable = 'unstable',
+  Failed = 'failed',
+}
 
 export type RecoverySignal =
   | { type: 'ice_disconnected' }
@@ -7,24 +11,24 @@ export type RecoverySignal =
   | { type: 'ws_dead' }
   | { type: 'call_answered' };
 
-export const initialState: RecoveryState = 'healthy';
+export const initialState: RecoveryState = RecoveryState.Healthy;
 
 export const reduce = (
   prev: RecoveryState,
   signal: RecoverySignal,
 ): RecoveryState => {
-  if (prev === 'failed') return 'failed';
+  if (prev === RecoveryState.Failed) return RecoveryState.Failed;
 
   switch (signal.type) {
     case 'ice_disconnected':
-      return prev === 'healthy' ? 'unstable' : prev;
+      return prev === RecoveryState.Healthy ? RecoveryState.Unstable : prev;
 
     case 'ice_connected':
     case 'call_answered':
-      return 'healthy';
+      return RecoveryState.Healthy;
 
     case 'ice_failed':
     case 'ws_dead':
-      return 'failed';
+      return RecoveryState.Failed;
   }
 };

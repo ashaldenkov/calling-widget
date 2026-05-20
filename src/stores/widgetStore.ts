@@ -12,6 +12,7 @@ import {
   type WidgetState,
 } from '../types/types';
 import type { BrowserWarning } from '../utils/browserDetection';
+import { RecoveryState } from '../utils/callRecovery';
 
 const STORAGE_KEY = 'CallWidgetStore';
 const STALE_TTL_MS = 10 * 60 * 1000;
@@ -55,7 +56,7 @@ const initialState: WidgetState = {
   isCollapsed: true,
   compatibilityWarnings: [],
   currentBridgeId: null,
-  recoveryStatus: 'healthy',
+  recoveryStatus: RecoveryState.Healthy,
 };
 
 function loadPersisted(): Partial<PersistedWidgetState> {

@@ -1,6 +1,7 @@
 import type { TCountryCode } from 'countries-list';
 
 import type { BrowserWarning } from '../utils/browserDetection';
+import type { RecoveryState } from '../utils/callRecovery';
 
 export interface CallWidgetConfig {
   apiBaseUrl: string;
@@ -130,5 +131,5 @@ export interface WidgetState {
   isCollapsed: boolean;
   compatibilityWarnings: BrowserWarning[];
   currentBridgeId: string | null;
-  recoveryStatus: 'healthy' | 'unstable' | 'failed';
+  recoveryStatus: RecoveryState;
 }
