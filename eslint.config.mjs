@@ -15,7 +15,15 @@ const disableAllTsEslintRules = Object.fromEntries(
 );
 
 export default tseslint.config(
-  { ignores: ['dist', 'vite.config.ts', 'vite.loader.config.ts'] },
+  {
+    ignores: [
+      'dist',
+      'coverage',
+      'vite.config.ts',
+      'vite.loader.config.ts',
+      'vitest.config.ts',
+    ],
+  },
   {
     extends: [
       js.configs.recommended,
@@ -71,5 +79,24 @@ export default tseslint.config(
   {
     files: ['src/hooks/useJanusCall.ts', 'src/stores/janusStore.ts'],
     rules: disableAllTsEslintRules,
+  },
+  {
+    files: ['src/**/*.{test,spec}.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        vi: 'readonly',
+        beforeAll: 'readonly',
+        beforeEach: 'readonly',
+        afterAll: 'readonly',
+        afterEach: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
   },
 );
