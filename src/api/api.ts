@@ -1,5 +1,5 @@
 import { mapHttpError } from '../errors';
-import { eventBus, WidgetEvent } from '../eventBus';
+import { authenticate, getToken } from '../stores/authStore';
 import { widgetState } from '../stores/widgetStore';
 
 interface RequestConfig {
@@ -7,11 +7,12 @@ interface RequestConfig {
   data?: unknown;
   params?: Record<string, unknown>;
   signal?: AbortSignal;
+  _retried?: boolean; // marks that already retried after re-auth
 }
 
 export async function api<T>(
   path: string,
-  { method = 'GET', data, params, signal }: RequestConfig = {},
+  { method = 'GET', data, params, signal, _retried }: RequestConfig = {},
 ): Promise<T> {
   const config = widgetState.config;
   if (!config) throw new Error('Widget not initialized');
@@ -32,15 +33,20 @@ export async function api<T>(
     method: method.toUpperCase(),
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.authToken}`,
+      Authorization: `Bearer ${getToken() ?? ''}`,
     },
     ...(data && method !== 'GET' ? { body: JSON.stringify(data) } : {}),
     ...(signal ? { signal } : {}),
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      eventBus.emit(WidgetEvent.Unauthorized);
+    if (response.status === 401 && !_retried) {
+      // Reactive re-auth: fetch a fresh token once with the call's credentials
+      // and replay the request. If that still fails, the error propagates.
+      const token = await authenticate();
+      if (token) {
+        return api<T>(path, { method, data, params, signal, _retried: true });
+      }
     }
     const text = await response.text().catch(() => '');
     let message: string;

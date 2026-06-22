@@ -84,17 +84,18 @@ function mergePersisted(
   if (
     stored.callState &&
     ActiveCallStates.has(stored.callState) &&
-    stored.apiKey
+    stored.apiKey &&
+    stored.selectedTrunkId
   ) {
     return {
       ...stored,
-      callState: CallState.Idle, // triggers auto-restart useEffect in useCall
+      callState: CallState.Idle, // triggers auto-restart useEffect in useStartCall
       screen: 'calling',
       startCallTime: null,
     };
   }
 
-  // Active call without apiKey = legacy entry. Drop the call screen state.
+  // Active call without the data needed to restart (+re-auth) = stale entry.
   if (stored.callState && ActiveCallStates.has(stored.callState)) {
     return { ...stored, callState: CallState.Idle, screen: 'idle' };
   }
@@ -149,12 +150,6 @@ effect(() => {
 
 export const setConfig = (config: CallWidgetConfig): void => {
   widgetState.config = config;
-};
-
-export const updateAuthToken = (token: string): void => {
-  const current = widgetState.config;
-  if (!current || current.authToken === token) return;
-  widgetState.config = { ...current, authToken: token };
 };
 
 export const setCallParams = (params: CallParams): void => {

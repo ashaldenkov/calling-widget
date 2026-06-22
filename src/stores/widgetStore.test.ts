@@ -17,7 +17,6 @@ import {
   setScreen,
   setSelectedTrunkId,
   setStartCallTime,
-  updateAuthToken,
   widgetState,
 } from './widgetStore';
 
@@ -25,7 +24,6 @@ const MOCK_CONFIG = {
   apiBaseUrl: 'https://api.test',
   webBaseUrl: 'https://web.test',
   janusWsUrl: 'wss://janus.test',
-  authToken: 'tok-123',
 };
 
 const MOCK_PARAMS = {
@@ -48,36 +46,8 @@ describe('setConfig', () => {
 
   it('overwrites a previously set config', () => {
     setConfig(MOCK_CONFIG);
-    setConfig({ ...MOCK_CONFIG, authToken: 'new-tok' });
-    expect(widgetState.config?.authToken).toBe('new-tok');
-  });
-});
-
-describe('updateAuthToken', () => {
-  it('updates the authToken on an existing config', () => {
-    setConfig(MOCK_CONFIG);
-    updateAuthToken('fresh-token');
-    expect(widgetState.config?.authToken).toBe('fresh-token');
-  });
-
-  it('is a no-op when config is null — no crash, state unchanged', () => {
-    updateAuthToken('tok');
-    expect(widgetState.config).toBeNull();
-  });
-
-  it('is a no-op when the new token is identical to the current one', () => {
-    setConfig(MOCK_CONFIG);
-    const before = widgetState.config;
-    updateAuthToken(MOCK_CONFIG.authToken);
-    // No new object created — same reference
-    expect(widgetState.config).toBe(before);
-  });
-
-  it('creates a new config object when the token changes — other fields are preserved', () => {
-    setConfig(MOCK_CONFIG);
-    updateAuthToken('next-token');
-    expect(widgetState.config?.apiBaseUrl).toBe(MOCK_CONFIG.apiBaseUrl);
-    expect(widgetState.config?.janusWsUrl).toBe(MOCK_CONFIG.janusWsUrl);
+    setConfig({ ...MOCK_CONFIG, apiBaseUrl: 'https://other.test' });
+    expect(widgetState.config?.apiBaseUrl).toBe('https://other.test');
   });
 });
 
@@ -302,9 +272,9 @@ describe('sessionStorage persistence', () => {
     const { state } = JSON.parse(
       sessionStorage.getItem('CallWidgetStore')!,
     ) as {
-      state: { screen: string; apiKey: string | null };
+      state: { screen: string; extCustomerId: number | null };
     };
     expect(state.screen).toBe('calling');
-    expect(state.apiKey).toBe('api-key');
+    expect(state.extCustomerId).toBe(42);
   });
 });

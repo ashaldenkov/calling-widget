@@ -5,7 +5,6 @@ interface LoaderConfig {
   apiBaseUrl: string;
   webBaseUrl: string;
   janusWsUrl: string;
-  authToken: string;
 }
 
 interface CallWidgetAPI {
