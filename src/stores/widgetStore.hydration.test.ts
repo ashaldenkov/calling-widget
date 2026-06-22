@@ -35,11 +35,13 @@ describe('transient screens — reset to idle on reload', () => {
 });
 
 describe('active call hydration', () => {
-  it('active call WITH apiKey → screen stays "calling", callState reset to Idle to trigger auto-restart', async () => {
+  it('active call WITH restart data (apiKey + trunk) → screen stays "calling", callState reset to Idle to trigger auto-restart', async () => {
     writeToSession({
       screen: 'calling',
       callState: CallState.Connected,
       apiKey: 'key-abc',
+      extAgentId: 7,
+      selectedTrunkId: 'trunk-1',
     });
     const { widgetState } = await import('./widgetStore');
     expect(widgetState.screen).toBe('calling');
@@ -47,11 +49,12 @@ describe('active call hydration', () => {
     expect(widgetState.callState).toBe(CallState.Idle);
   });
 
-  it('active call WITHOUT apiKey (legacy entry) → both screen and callState are dropped to idle', async () => {
+  it('active call WITHOUT restart data (no apiKey) → both screen and callState are dropped to idle', async () => {
     writeToSession({
       screen: 'calling',
       callState: CallState.Ringing,
       apiKey: null,
+      selectedTrunkId: null,
     });
     const { widgetState } = await import('./widgetStore');
     expect(widgetState.screen).toBe('idle');
@@ -64,9 +67,15 @@ describe('active call hydration', () => {
     CallState.Connected,
     CallState.OnHold,
   ])(
-    'active callState "%s" with apiKey always resets callState to idle for auto-restart',
+    'active callState "%s" with restart data always resets callState to idle for auto-restart',
     async (callState) => {
-      writeToSession({ screen: 'calling', callState, apiKey: 'k' });
+      writeToSession({
+        screen: 'calling',
+        callState,
+        apiKey: 'key-abc',
+        extAgentId: 7,
+        selectedTrunkId: 'trunk-1',
+      });
       const { widgetState } = await import('./widgetStore');
       expect(widgetState.callState).toBe(CallState.Idle);
       expect(widgetState.screen).toBe('calling');
@@ -78,7 +87,12 @@ describe('stale and corrupt sessionStorage', () => {
   it('ignores data older than 10 minutes — widget starts fresh', async () => {
     const STALE_TTL_MS = 10 * 60 * 1000;
     writeToSession(
-      { screen: 'calling', callState: CallState.Connected, apiKey: 'k' },
+      {
+        screen: 'calling',
+        callState: CallState.Connected,
+        extCustomerId: 42,
+        selectedTrunkId: 'trunk-1',
+      },
       Date.now() - STALE_TTL_MS - 1,
     );
     const { widgetState } = await import('./widgetStore');
@@ -120,7 +134,8 @@ describe('stale and corrupt sessionStorage', () => {
         state: {
           screen: 'calling',
           callState: CallState.Connected,
-          apiKey: 'k',
+          extCustomerId: 42,
+          selectedTrunkId: 'trunk-1',
         },
       }),
     );

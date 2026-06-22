@@ -28,38 +28,13 @@ registerWidgetHandlers(() => {
   render(<App />, root);
 });
 
-async function devLogin(): Promise<string> {
-  const response = await fetch(`${apiBaseUrl}/auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: import.meta.env.VITE_DEV_AUTH_EMAIL,
-      password: import.meta.env.VITE_DEV_AUTH_PASSWORD,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Dev login failed: ${response.status} ${response.statusText}`,
-    );
-  }
-  const data = (await response.json()) as { token?: string };
-  if (!data.token) throw new Error('Dev login: no token in response');
-  return data.token;
-}
-
-void devLogin().then(
-  (authToken) => {
-    eventBus.emit(WidgetEvent.Init, {
-      apiBaseUrl,
-      webBaseUrl: import.meta.env.VITE_WEB_BASE_URL,
-      janusWsUrl: import.meta.env.VITE_JANUS_WS_URL,
-      authToken,
-    });
-  },
-  (error: unknown) => {
-    console.error('[localDev]', error);
-  },
-);
+// init carries only the infrastructure URLs. The widget authenticates itself
+// per call via /integration/auth using the apiKey/extAgentId from the form.
+eventBus.emit(WidgetEvent.Init, {
+  apiBaseUrl,
+  webBaseUrl: import.meta.env.VITE_WEB_BASE_URL,
+  janusWsUrl: import.meta.env.VITE_JANUS_WS_URL,
+});
 
 const form = document.getElementById('call-form') as HTMLFormElement | null;
 form?.addEventListener('submit', (event) => {

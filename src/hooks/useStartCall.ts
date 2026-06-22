@@ -29,7 +29,7 @@ import { claimCall, releaseCall } from '../utils/tabPresence';
 import { type JanusCallEvent, useJanusCall } from './useJanusCall';
 
 export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
-  const { config, screen, callState, customerData, selectedTrunkId } =
+  const { config, screen, callState, customerData, selectedTrunkId, apiKey } =
     widgetState;
 
   const handleEvent = useCallback((event: JanusCallEvent) => {
@@ -177,12 +177,21 @@ export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
       customerData !== null &&
       selectedTrunkId !== null &&
       config !== null &&
+      apiKey !== null && // credentials needed for per-call re-auth after reload
       !autoRestartedRef.current
     ) {
       autoRestartedRef.current = true;
       void startCall(selectedTrunkId);
     }
-  }, [screen, callState, customerData, selectedTrunkId, config, startCall]);
+  }, [
+    screen,
+    callState,
+    customerData,
+    selectedTrunkId,
+    config,
+    apiKey,
+    startCall,
+  ]);
 
   return startCall;
 };

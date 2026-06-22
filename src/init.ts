@@ -3,8 +3,9 @@ if (import.meta.env.DEV) {
 }
 
 import { queryClient } from './api/queryClient';
-import { ERR_CALL_IN_OTHER_TAB } from './errors';
+import { ERR_CALL_IN_OTHER_TAB, ERR_GENERIC } from './errors';
 import { eventBus, WidgetEvent } from './eventBus';
+import { authenticate, authState, clearAuth } from './stores/authStore';
 import { destroyJanusSession, hangUpRef } from './stores/janusStore';
 import {
   resetToIdle,
@@ -13,10 +14,10 @@ import {
   setConfig,
   setError,
   setScreen,
-  updateAuthToken,
   widgetState,
 } from './stores/widgetStore';
 import { ActiveCallStates } from './types/types';
+import { handleWidgetError } from './utils';
 import { detectBrowserWarnings } from './utils/browserDetection';
 import { isCallOwnedByOtherTab, releaseCall } from './utils/tabPresence';
 
@@ -64,6 +65,14 @@ export function registerWidgetHandlers(ensureMount: () => void): void {
         resetToIdle();
       }
       setCallParams(params);
+      // Per-call authentication: fetch a token for this call before any API
+      // request. On failure show the error screen (emits `error`).
+      clearAuth();
+      const token = await authenticate();
+      if (!token) {
+        handleWidgetError(authState.error ?? ERR_GENERIC);
+        return;
+      }
       const warnings = detectBrowserWarnings();
       if (warnings.length === 0 || localStorage.getItem('cw-compat-warned')) {
         setScreen('sipTrunk');
@@ -80,15 +89,6 @@ export function registerWidgetHandlers(ensureMount: () => void): void {
     queryClient.clear();
     releaseCall();
     resetToIdle();
-  });
-
-  eventBus.on(WidgetEvent.UpdateToken, ({ token }) => {
-    if (!widgetState.config) {
-      console.warn(
-        `${LOG_PREFIX} Cannot update token: widget not initialized.`,
-      );
-      return;
-    }
-    updateAuthToken(token);
+    clearAuth();
   });
 }

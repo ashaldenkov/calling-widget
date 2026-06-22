@@ -7,7 +7,6 @@ export interface CallWidgetConfig {
   apiBaseUrl: string;
   webBaseUrl: string;
   janusWsUrl: string;
-  authToken: string;
 }
 
 export interface CallParams {

@@ -221,7 +221,6 @@ describe('ExpandedCallBar', () => {
         apiBaseUrl: 'https://api.calleague.com',
         webBaseUrl: 'https://app.calleague.com',
         janusWsUrl: 'wss://janus.calleague.com',
-        authToken: 'token',
       });
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
       try {

@@ -10,11 +10,9 @@ export enum WidgetEvent {
   WidgetOpened = 'widget_opened',
   WidgetDismissed = 'widget_dismissed',
   Error = 'error',
-  Unauthorized = 'unauthorized',
   TrunkSelected = 'trunk_selected',
   StatusConfirmed = 'status_confirmed',
   StatusChangeSkipped = 'status_change_skipped',
-  UpdateToken = 'update_token',
 }
 
 export interface WidgetEventPayloads {
@@ -27,7 +25,6 @@ export interface WidgetEventPayloads {
   [WidgetEvent.WidgetOpened]: void;
   [WidgetEvent.WidgetDismissed]: void;
   [WidgetEvent.Error]: { message: string };
-  [WidgetEvent.Unauthorized]: void;
   [WidgetEvent.TrunkSelected]: { trunkId: string; trunkName: string };
   [WidgetEvent.StatusConfirmed]: {
     clientId: number;
@@ -35,7 +32,6 @@ export interface WidgetEventPayloads {
     dialerId: number;
   };
   [WidgetEvent.StatusChangeSkipped]: { clientId: number };
-  [WidgetEvent.UpdateToken]: { token: string };
 }
 
 export type EventHandler<E extends WidgetEvent> =

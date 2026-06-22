@@ -91,7 +91,6 @@ describe('widget already loaded (window.CallWidget exists)', () => {
       apiBaseUrl: 'https://api.example.com',
       webBaseUrl: 'https://app.example.com',
       janusWsUrl: 'wss://webrtc.example.com',
-      authToken: 'tok',
     };
     await window.CallWidgetLoader!.load({
       scriptUrl: 'https://cdn.example.com/call-widget.js',
@@ -146,7 +145,6 @@ describe('first load — script injection', () => {
       apiBaseUrl: 'https://api.example.com',
       webBaseUrl: 'https://app.example.com',
       janusWsUrl: 'wss://webrtc.example.com',
-      authToken: 'tok',
     };
     const promise = window.CallWidgetLoader!.load({
       scriptUrl: 'https://cdn.example.com/call-widget.js',
@@ -246,11 +244,11 @@ describe('concurrent and retry behaviour', () => {
   });
 });
 
-describe('two-step usage: preload the script, init later with the auth token', () => {
+describe('two-step usage: preload the script, init later', () => {
   it('resolves with the widget without auto-initializing when no config is passed', async () => {
     await import('./loader');
 
-    // Step 1 — preload before the user is authenticated
+    // Step 1 — preload before the agent session is established
     const widgetPromise = window.CallWidgetLoader!.load({
       scriptUrl: 'https://cdn.example.com/call-widget.js',
     });
@@ -264,19 +262,17 @@ describe('two-step usage: preload the script, init later with the auth token', (
     // No auto-init — the widget is ready but not yet configured
     expect(mockWidget.emit).not.toHaveBeenCalled();
 
-    // Step 2 — after login, init with the session token
+    // Step 2 — init with the infrastructure config (auth happens per call)
     widget.emit('init', {
       apiBaseUrl: 'https://api.example.com',
       webBaseUrl: 'https://app.example.com',
       janusWsUrl: 'wss://webrtc.example.com',
-      authToken: 'session-token-xyz',
     });
 
-    // Only one emit, driven by the caller — not the loader
     expect(mockWidget.emit).toHaveBeenCalledTimes(1);
     expect(mockWidget.emit).toHaveBeenCalledWith(
       'init',
-      expect.objectContaining({ authToken: 'session-token-xyz' }),
+      expect.objectContaining({ apiBaseUrl: 'https://api.example.com' }),
     );
   });
 });

@@ -13,11 +13,31 @@ vi.mock('./utils/tabPresence', () => ({
 vi.mock('./utils/browserDetection', () => ({
   detectBrowserWarnings: vi.fn().mockReturnValue([]),
 }));
+vi.mock('./stores/authStore', () => {
+  const authState = {
+    token: null as string | null,
+    error: null as string | null,
+  };
+  return {
+    authState,
+    authenticate: vi.fn(() => {
+      authState.token = 'tok';
+      authState.error = null;
+      return Promise.resolve('tok');
+    }),
+    clearAuth: vi.fn(() => {
+      authState.token = null;
+      authState.error = null;
+    }),
+    getToken: vi.fn(() => authState.token),
+  };
+});
 
 import { queryClient } from './api/queryClient';
 import { ERR_CALL_IN_OTHER_TAB } from './errors';
 import { eventBus, WidgetEvent } from './eventBus';
 import { registerWidgetHandlers } from './init';
+import { authenticate, authState } from './stores/authStore';
 import { destroyJanusSession } from './stores/janusStore';
 import { widgetState } from './stores/widgetStore';
 import { resetWidgetState } from './test/resetWidgetState';
@@ -29,7 +49,6 @@ const MOCK_CONFIG = {
   apiBaseUrl: 'https://api.test',
   webBaseUrl: 'https://web.test',
   janusWsUrl: 'wss://janus.test',
-  authToken: 'tok-123',
 };
 
 const MOCK_PARAMS = {
@@ -40,12 +59,12 @@ const MOCK_PARAMS = {
 };
 
 // Handlers register once at module load
-// All tests share the same handler closures and the `mounted` flag inside themx
+// All tests share the same handler closures and the `mounted` flag inside them
 const ensureMount = vi.fn();
 registerWidgetHandlers(ensureMount);
 
-// Flush the async Call-event handler IIFE
-const flushAsync = () => Promise.resolve();
+// Flush the async Call-event handler IIFE (multiple awaits inside)
+const flushAsync = () => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
   resetWidgetState();
@@ -56,8 +75,10 @@ beforeEach(() => {
   vi.mocked(destroyJanusSession).mockReset();
   vi.mocked(queryClient.clear).mockReset();
   vi.mocked(releaseCall).mockReset();
+  vi.mocked(authenticate).mockReset();
+  vi.mocked(authenticate).mockResolvedValue('tok');
   ensureMount.mockReset();
-  // Bring widget into initialized state for each test
+  // Bring widget into an initialized state for each test
   eventBus.emit(WidgetEvent.Init, MOCK_CONFIG);
 });
 
@@ -82,10 +103,10 @@ describe('Init event', () => {
 });
 
 describe('Call event', () => {
-  it('navigates to sipTrunk when there are no compatibility warnings', async () => {
-    vi.mocked(detectBrowserWarnings).mockReturnValue([]);
+  it('authenticates for the call before navigating to sipTrunk', async () => {
     eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
     await flushAsync();
+    expect(authenticate).toHaveBeenCalledTimes(1);
     expect(widgetState.screen).toBe('sipTrunk');
   });
 
@@ -103,17 +124,15 @@ describe('Call event', () => {
   it('skips compatibilityWarning and goes straight to sipTrunk when cw-compat-warned flag is set', async () => {
     const warnings = [{ type: 'mobileDevice' as const }];
     vi.mocked(detectBrowserWarnings).mockReturnValue(warnings);
-    // User previously acknowledged the warning
     localStorage.setItem('cw-compat-warned', '1');
     eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
     await flushAsync();
     expect(widgetState.screen).toBe('sipTrunk');
   });
 
-  it('clears cw-compat-warned flag has no effect on detection — only bypasses the gate', async () => {
+  it('shows compatibilityWarning when no acknowledgement flag is set', async () => {
     const warnings = [{ type: 'mobileDevice' as const }];
     vi.mocked(detectBrowserWarnings).mockReturnValue(warnings);
-    // No flag set
     eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
     await flushAsync();
     expect(widgetState.screen).toBe('compatibilityWarning');
@@ -130,11 +149,27 @@ describe('Call event', () => {
     expect(widgetState.screen).toBe('idle');
   });
 
+  it('shows the backend error on the error screen when authentication fails', async () => {
+    vi.mocked(authenticate).mockImplementation(() => {
+      authState.error = 'Invalid API key';
+      return Promise.resolve(null);
+    });
+    const spy = vi.spyOn(eventBus, 'emit');
+    eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
+    await flushAsync();
+    expect(widgetState.screen).toBe('error');
+    expect(widgetState.error).toBe('Invalid API key');
+    expect(spy).toHaveBeenCalledWith(WidgetEvent.Error, {
+      message: 'Invalid API key',
+    });
+  });
+
   it('silently ignores Call when an active call is already in progress', async () => {
     widgetState.callState = CallState.Connected;
     eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
     await flushAsync();
     expect(widgetState.screen).toBe('idle'); // unchanged
+    expect(authenticate).not.toHaveBeenCalled();
   });
 
   it('sets error screen with ERR_CALL_IN_OTHER_TAB when another tab owns the call', async () => {
@@ -151,20 +186,16 @@ describe('Call event', () => {
     await flushAsync();
     expect(destroyJanusSession).toHaveBeenCalled();
     expect(queryClient.clear).toHaveBeenCalled();
-    // Error screen is gone; ready for trunk selection
     expect(widgetState.screen).toBe('sipTrunk');
   });
 
   it('does not reset state if widget was already idle (avoids unnecessary Janus teardown)', async () => {
-    // screen is 'idle' from beforeEach
     eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
     await flushAsync();
     expect(destroyJanusSession).not.toHaveBeenCalled();
   });
 
   it('interrupts sipTrunk screen for a new customer — loads fresh call params and shows sipTrunk again', async () => {
-    // Agent is on the trunk selection screen for customer A (no Janus session yet).
-    // destroyJanusSession is still called as a defensive no-op cleanup.
     widgetState.screen = 'sipTrunk';
     widgetState.extCustomerId = 99;
     widgetState.apiKey = 'old-key';
@@ -179,7 +210,6 @@ describe('Call event', () => {
     eventBus.emit(WidgetEvent.Call, newParams);
     await flushAsync();
 
-    // Defensive teardown runs (no-op if no session, but always called)
     expect(destroyJanusSession).toHaveBeenCalled();
     expect(queryClient.clear).toHaveBeenCalled();
 
@@ -187,7 +217,6 @@ describe('Call event', () => {
     expect(widgetState.apiKey).toBe('new-key');
     expect(widgetState.phoneNumber).toBe('+9876543210');
 
-    // Back on trunk selection, ready for the new call
     expect(widgetState.screen).toBe('sipTrunk');
   });
 
@@ -196,6 +225,8 @@ describe('Call event', () => {
     await flushAsync();
     expect(widgetState.extCustomerId).toBe(MOCK_PARAMS.extCustomerId);
     expect(widgetState.apiKey).toBe(MOCK_PARAMS.apiKey);
+    expect(widgetState.extAgentId).toBe(MOCK_PARAMS.extAgentId);
+    expect(widgetState.phoneNumber).toBe(MOCK_PARAMS.phoneNumber);
   });
 });
 
@@ -219,20 +250,5 @@ describe('Dismiss event', () => {
     widgetState.screen = 'calling';
     eventBus.emit(WidgetEvent.Dismiss);
     expect(widgetState.screen).toBe('idle');
-  });
-});
-
-describe('UpdateToken event', () => {
-  it('updates the authToken when widget is initialized', () => {
-    eventBus.emit(WidgetEvent.UpdateToken, { token: 'new-token' });
-    expect(widgetState.config?.authToken).toBe('new-token');
-  });
-
-  it('is a no-op when config is null — no crash', () => {
-    widgetState.config = null;
-    expect(() =>
-      eventBus.emit(WidgetEvent.UpdateToken, { token: 'tok' }),
-    ).not.toThrow();
-    expect(widgetState.config).toBeNull();
   });
 });

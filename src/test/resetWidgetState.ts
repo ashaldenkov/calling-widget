@@ -1,8 +1,10 @@
+import { clearAuth } from '../stores/authStore';
 import { widgetState } from '../stores/widgetStore';
 import { CallState } from '../types/types';
 import { RecoveryState } from '../utils/callRecovery';
 
 export function resetWidgetState(): void {
+  clearAuth();
   widgetState.config = null;
   widgetState.screen = 'idle';
   widgetState.callState = CallState.Idle;
