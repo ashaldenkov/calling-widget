@@ -119,6 +119,30 @@ describe('startCall', () => {
     });
   });
 
+  it('posts to the call route with only trunkId when no phoneNumber is set', async () => {
+    widgetState.phoneNumber = null;
+    const { result } = renderHook(() => useStartCall());
+    await act(async () => {
+      await result.current('1');
+    });
+    expect(api).toHaveBeenCalledWith('/customers/1/call', {
+      method: 'POST',
+      data: { trunkId: 1 },
+    });
+  });
+
+  it('includes phoneNumber in the call request body when set', async () => {
+    widgetState.phoneNumber = '+15551234567';
+    const { result } = renderHook(() => useStartCall());
+    await act(async () => {
+      await result.current('1');
+    });
+    expect(api).toHaveBeenCalledWith('/customers/1/call', {
+      method: 'POST',
+      data: { trunkId: 1, phoneNumber: '+15551234567' },
+    });
+  });
+
   it('calls makeCall with the API response after setting state', async () => {
     const makeCall = vi.fn().mockResolvedValue(undefined);
     vi.mocked(useJanusCall).mockReturnValue({

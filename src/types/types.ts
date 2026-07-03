@@ -59,6 +59,11 @@ export interface UpdateStatusResponse {
   message: string;
 }
 
+export interface CallCustomerRequest {
+  trunkId: number;
+  phoneNumber?: string;
+}
+
 export interface CallCustomerResponse {
   bridgeId: string;
   targetUri: string;

@@ -21,7 +21,11 @@ import {
   setStartCallTime,
   widgetState,
 } from '../stores/widgetStore';
-import { CallState, type CallCustomerResponse } from '../types/types';
+import {
+  CallState,
+  type CallCustomerRequest,
+  type CallCustomerResponse,
+} from '../types/types';
 import { handleWidgetError } from '../utils';
 import { RecoveryState } from '../utils/callRecovery';
 import { claimCall, releaseCall } from '../utils/tabPresence';
@@ -128,7 +132,7 @@ export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
 
   const startCall = useCallback(
     async (trunkId: string) => {
-      const { customerData } = widgetState;
+      const { customerData, phoneNumber } = widgetState;
 
       if (!customerData) {
         handleWidgetError(ERR_CUSTOMER_DATA);
@@ -143,9 +147,13 @@ export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
 
       let response: CallCustomerResponse;
       try {
+        const data: CallCustomerRequest = { trunkId: Number(trunkId) };
+        if (phoneNumber) {
+          data.phoneNumber = phoneNumber;
+        }
         response = await api<CallCustomerResponse>(
           `/customers/${customerData.dialerId}/call`,
-          { method: 'POST', data: { trunkId: Number(trunkId) } },
+          { method: 'POST', data },
         );
       } catch (err) {
         releaseCall();
