@@ -11,7 +11,11 @@ import {
   onJanusSessionDestroyed,
   setJanusHandle,
 } from '../stores/janusStore';
-import { type CallFailReason, reasonFromQ850 } from '../types/callFailure';
+import {
+  type CallFailReason,
+  reasonFromQ850,
+  reasonFromSipCode,
+} from '../types/callFailure';
 import { CallState, type CallCustomerResponse } from '../types/types';
 import {
   createUnlockAudioElement,
@@ -502,14 +506,21 @@ export const useJanusCall = ({
               });
               dispatchRecoveryRef.current?.({ type: 'call_answered' });
             } else if (event === 'hangup') {
-              const cause: unknown = msg?.result?.code;
-              const failReason = reasonFromQ850(cause);
+              const proto = msg?.result?.reason_header_protocol;
+              const headerCause = msg?.result?.reason_header_cause;
+              const failReason =
+                proto === 'Q.850'
+                  ? reasonFromQ850(headerCause)
+                  : proto === 'SIP'
+                    ? reasonFromSipCode(headerCause)
+                    : reasonFromSipCode(msg?.result?.code);
               if (failReason) {
                 emitEvent({
                   state: CallState.Failed,
                   bridgeId: payload.bridgeId,
                   reason: failReason,
-                  error: msg?.result?.reason ?? `Q.850 ${String(cause)}`,
+                  error:
+                    msg?.result?.reason ?? `SIP ${String(msg?.result?.code)}`,
                 });
               } else {
                 emitEvent({

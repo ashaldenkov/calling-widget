@@ -58,6 +58,8 @@ interface OnMessageResult {
   event?: string;
   code?: number;
   reason?: string;
+  reason_header_protocol?: string;
+  reason_header_cause?: string;
 }
 
 interface AttachConfig {
@@ -617,30 +619,129 @@ describe('onmessage', () => {
     ).toContain('N/A');
   });
 
-  it('hangup with Q.850 busy code -> Failed with reason + cleanup', async () => {
+  it('hangup with a Q.850 busy Reason header (the real "Busy Here" event) -> Failed Busy + cleanup', async () => {
+    // Mirrors the actual Janus SIP event: SIP code 486, Q.850 cause 17.
     const { handle, hook } = await setupConnected();
     syncAct(() =>
       capturedConfig.onmessage(
-        { result: { event: 'hangup', code: 17, reason: 'busy' } },
+        {
+          result: {
+            event: 'hangup',
+            code: 486,
+            reason: 'Busy Here',
+            reason_header_protocol: 'Q.850',
+            reason_header_cause: '17',
+          },
+        },
         null,
       ),
     );
     expect(failedEvent(hook)?.reason).toEqual({ kind: 'Busy' });
+    expect(failedEvent(hook)?.error).toBe('Busy Here');
     expect(handle.detach).toHaveBeenCalled();
   });
 
-  it('hangup with Q.850 code and no reason string uses fallback error', async () => {
+  it('hangup with a Q.850 no-answer cause (19) -> Failed NoAnswer', async () => {
     const { hook } = await setupConnected();
     syncAct(() =>
-      capturedConfig.onmessage({ result: { event: 'hangup', code: 17 } }, null),
+      capturedConfig.onmessage(
+        {
+          result: {
+            event: 'hangup',
+            code: 480,
+            reason_header_protocol: 'Q.850',
+            reason_header_cause: '19',
+          },
+        },
+        null,
+      ),
     );
-    expect(failedEvent(hook)?.error).toBe('Q.850 17');
+    expect(failedEvent(hook)?.reason).toEqual({ kind: 'NoAnswer' });
   });
 
-  it('hangup with normal-clearing code -> Ended + cleanup', async () => {
+  it('hangup with a Q.850 header but no reason string uses the SIP code fallback error', async () => {
+    const { hook } = await setupConnected();
+    syncAct(() =>
+      capturedConfig.onmessage(
+        {
+          result: {
+            event: 'hangup',
+            code: 486,
+            reason_header_protocol: 'Q.850',
+            reason_header_cause: '17',
+          },
+        },
+        null,
+      ),
+    );
+    expect(failedEvent(hook)?.error).toBe('SIP 486');
+  });
+
+  it('hangup with a SIP-protocol Reason header maps the header cause (486 -> Busy)', async () => {
+    const { hook } = await setupConnected();
+    syncAct(() =>
+      capturedConfig.onmessage(
+        {
+          result: {
+            event: 'hangup',
+            code: 486,
+            reason_header_protocol: 'SIP',
+            reason_header_cause: '486',
+          },
+        },
+        null,
+      ),
+    );
+    expect(failedEvent(hook)?.reason).toEqual({ kind: 'Busy' });
+  });
+
+  it('hangup with Q.850 normal clearing (16) -> Ended + cleanup', async () => {
     const { handle, hook } = await setupConnected();
     syncAct(() =>
-      capturedConfig.onmessage({ result: { event: 'hangup', code: 16 } }, null),
+      capturedConfig.onmessage(
+        {
+          result: {
+            event: 'hangup',
+            reason_header_protocol: 'Q.850',
+            reason_header_cause: '16',
+          },
+        },
+        null,
+      ),
+    );
+    expect(hook.events.some((e) => e.state === CallState.Ended)).toBe(true);
+    expect(handle.detach).toHaveBeenCalled();
+  });
+
+  it('hangup without a Q.850 header falls back to the SIP code (486 -> Busy)', async () => {
+    const { hook } = await setupConnected();
+    syncAct(() =>
+      capturedConfig.onmessage(
+        { result: { event: 'hangup', code: 486, reason: 'Busy Here' } },
+        null,
+      ),
+    );
+    expect(failedEvent(hook)?.reason).toEqual({ kind: 'Busy' });
+  });
+
+  it('hangup without a Q.850 header falls back to the SIP code (480 -> NoAnswer)', async () => {
+    const { hook } = await setupConnected();
+    syncAct(() =>
+      capturedConfig.onmessage(
+        { result: { event: 'hangup', code: 480 } },
+        null,
+      ),
+    );
+    expect(failedEvent(hook)?.reason).toEqual({ kind: 'NoAnswer' });
+  });
+
+  it('hangup with a non-failure SIP code (200) -> Ended', async () => {
+    const { handle, hook } = await setupConnected();
+    syncAct(() =>
+      capturedConfig.onmessage(
+        { result: { event: 'hangup', code: 200 } },
+        null,
+      ),
     );
     expect(hook.events.some((e) => e.state === CallState.Ended)).toBe(true);
     expect(handle.detach).toHaveBeenCalled();
