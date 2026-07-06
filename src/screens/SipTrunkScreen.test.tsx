@@ -198,6 +198,27 @@ describe('SipTrunkScreen', () => {
       expect(rows[1]).toHaveAttribute('data-selected');
     });
 
+    it('skips phone encryption and sends phoneNumberEnc undefined when there is no phone number', async () => {
+      widgetState.phoneNumber = null;
+      renderScreen(
+        <SipTrunkScreen
+          onConfirm={vi.fn().mockResolvedValue(undefined)}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Main Trunk')).toBeInTheDocument();
+      });
+      expect(mockEncrypt).not.toHaveBeenCalled();
+      expect(mockApi).toHaveBeenCalledWith(
+        '/widget/trunks-for-call',
+        expect.objectContaining({
+          data: expect.objectContaining({ phoneNumberEnc: undefined }),
+        }),
+      );
+    });
+
     it('routes to the error screen with ERR_NO_TRUNKS when zero trunks are returned', async () => {
       mockApi.mockResolvedValue(trunkResponse([]));
       renderScreen(
@@ -394,6 +415,79 @@ describe('SipTrunkScreen', () => {
       );
       fireEvent.click(outerCancel!);
       expect(onCancel).toHaveBeenCalledOnce();
+    });
+
+    it('closes the dialog and clears the error when Cancel is clicked while not starting', async () => {
+      // Seed an error inside the open dialog via the in-call path, then Cancel.
+      inCallResult = { resolve: { inCall: true } };
+      renderScreen(
+        <SipTrunkScreen
+          onConfirm={vi.fn().mockResolvedValue(undefined)}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Main Trunk')).toBeInTheDocument();
+      });
+      await confirmCall();
+
+      await waitFor(() => {
+        expect(screen.getByText(ERR_CUSTOMER_IN_CALL)).toBeInTheDocument();
+      });
+
+      // isStarting is false now -> Cancel falls through the guard and closes.
+      const dialogCancel = document.querySelector<HTMLButtonElement>(
+        '.cw-dialog__actions button:first-child',
+      );
+      expect(dialogCancel).not.toBeDisabled();
+      await act(() => {
+        fireEvent.click(dialogCancel!);
+      });
+
+      await waitFor(() => {
+        expect(document.querySelector('.cw-dialog')).not.toHaveAttribute(
+          'data-open',
+        );
+      });
+      // callError cleared alongside the close.
+      expect(screen.queryByText(ERR_CUSTOMER_IN_CALL)).not.toBeInTheDocument();
+    });
+
+    it('clears the error via onErrorClose when the in-dialog error notification is dismissed', async () => {
+      inCallResult = { resolve: { inCall: true } };
+      renderScreen(
+        <SipTrunkScreen
+          onConfirm={vi.fn().mockResolvedValue(undefined)}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Main Trunk')).toBeInTheDocument();
+      });
+      await confirmCall();
+
+      await waitFor(() => {
+        expect(screen.getByText(ERR_CUSTOMER_IN_CALL)).toBeInTheDocument();
+      });
+
+      // Dismiss the notification -> onErrorClose -> setCallError(null).
+      const errorCloseBtn = document.querySelector<HTMLButtonElement>(
+        '.cw-notif[data-type="error"] button',
+      );
+      expect(errorCloseBtn).toBeTruthy();
+      await act(() => {
+        fireEvent.click(errorCloseBtn!);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText(ERR_CUSTOMER_IN_CALL),
+        ).not.toBeInTheDocument();
+      });
+      // The dialog itself stays open — only the error was cleared.
+      expect(document.querySelector('.cw-dialog')).toHaveAttribute('data-open');
     });
 
     it('blocks dialog cancellation (Escape) while a call is starting', async () => {

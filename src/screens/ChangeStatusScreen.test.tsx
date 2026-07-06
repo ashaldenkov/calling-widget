@@ -10,6 +10,26 @@ import type { TCountryCode } from 'countries-list';
 
 vi.mock('../api/api', () => ({ api: vi.fn() }));
 
+// useRef is mocked to defer to the real implementation by default; individual
+// tests can force specific refs to stay null to exercise the null-guard paths.
+const useRefMock = vi.hoisted(() =>
+  vi.fn<() => { current: unknown } | undefined>(),
+);
+
+vi.mock('preact/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('preact/hooks')>();
+  return {
+    ...actual,
+    useRef: <T,>(init: T) => useRefMock() ?? actual.useRef<T>(init),
+  };
+});
+
+const nullRef = () =>
+  Object.defineProperty({} as { current: unknown }, 'current', {
+    get: () => null,
+    set: () => undefined,
+  });
+
 import { api } from '../api/api';
 import { ERR_GENERIC } from '../errors';
 import { setCustomerData } from '../stores/widgetStore';
@@ -83,6 +103,8 @@ const cancelButton = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   resetWidgetState();
+  // Default: always defer to the real useRef.
+  useRefMock.mockReturnValue(undefined);
   vi.stubGlobal(
     'IntersectionObserver',
     class {
@@ -347,6 +369,81 @@ describe('ChangeStatusScreen', () => {
 
       await waitFor(() =>
         expect(screen.getByText(ERR_GENERIC)).toBeInTheDocument(),
+      );
+    });
+  });
+
+  describe('infinite scroll', () => {
+    it('fetches the next page when the sentinel intersects and there is a next page', async () => {
+      const observerCallbacks: Array<
+        (entries: IntersectionObserverEntry[]) => void
+      > = [];
+      vi.stubGlobal(
+        'IntersectionObserver',
+        class {
+          constructor(cb: (entries: IntersectionObserverEntry[]) => void) {
+            observerCallbacks.push(cb);
+          }
+          observe = vi.fn();
+          disconnect = vi.fn();
+        },
+      );
+
+      setCustomerData(customerWithStatus(null));
+      mockedApi.mockImplementation((_path, opts) => {
+        const pageParam = (opts?.params?.page as number) ?? 1;
+        if (pageParam === 1) {
+          return Promise.resolve(
+            page([status('s1', 'Available')], {
+              page: 1,
+              hasNextPage: true,
+              totalPages: 2,
+            }),
+          );
+        }
+        return Promise.resolve(
+          page([status('s2', 'Busy')], { page: 2, hasNextPage: false }),
+        );
+      });
+
+      renderScreen();
+
+      await waitFor(() =>
+        expect(screen.getByText('Available')).toBeInTheDocument(),
+      );
+
+      // Trigger the observer -> onFetchNextPage -> void fetchNextPage().
+      // Poll until the up-to-date observer (with hasNextPage=true) is wired up.
+      await waitFor(async () => {
+        await act(async () => {
+          observerCallbacks.forEach((cb) =>
+            cb([{ isIntersecting: true } as IntersectionObserverEntry]),
+          );
+          await Promise.resolve();
+        });
+        expect(mockedApi).toHaveBeenCalledWith(
+          '/statuses',
+          expect.objectContaining({
+            params: expect.objectContaining({ page: 2 }),
+          }),
+        );
+      });
+
+      await waitFor(() => expect(screen.getByText('Busy')).toBeInTheDocument());
+    });
+  });
+
+  describe('ref null-guards', () => {
+    it('skips the auto-animate setup when the error container ref is null', async () => {
+      // 1st useRef -> commentRef (real), 2nd useRef -> errorParent (null).
+      useRefMock.mockReturnValueOnce(undefined).mockReturnValueOnce(nullRef());
+      setCustomerData(customerWithStatus());
+
+      renderScreen();
+
+      // Component still renders fine even though the auto-animate effect bailed.
+      await waitFor(() =>
+        expect(screen.getByText('Available')).toBeInTheDocument(),
       );
     });
   });

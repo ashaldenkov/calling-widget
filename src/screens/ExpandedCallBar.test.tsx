@@ -216,6 +216,23 @@ describe('ExpandedCallBar', () => {
       expect(widgetState.isCollapsed).toBe(true);
     });
 
+    it('falls back to an empty web base URL when config is null', () => {
+      // resetWidgetState leaves config null -> webBaseUrl ?? '' takes the ''.
+      widgetState.config = null;
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+      try {
+        render(<ExpandedCallBar customer={mockCustomer} onEndCall={vi.fn()} />);
+        fireEvent.click(screen.getByText('Go to profile in Calleague'));
+        expect(openSpy).toHaveBeenCalledWith(
+          '/customers/cust-1',
+          '_blank',
+          'noopener',
+        );
+      } finally {
+        openSpy.mockRestore();
+      }
+    });
+
     it("opens the customer profile in a new tab when 'Go to profile in Calleague' is clicked", () => {
       setConfig({
         apiBaseUrl: 'https://api.calleague.com',

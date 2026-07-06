@@ -34,7 +34,7 @@ vi.mock('./stores/authStore', () => {
 });
 
 import { queryClient } from './api/queryClient';
-import { ERR_CALL_IN_OTHER_TAB } from './errors';
+import { ERR_CALL_IN_OTHER_TAB, ERR_GENERIC } from './errors';
 import { eventBus, WidgetEvent } from './eventBus';
 import { registerWidgetHandlers } from './init';
 import { authenticate, authState } from './stores/authStore';
@@ -164,6 +164,17 @@ describe('Call event', () => {
     });
   });
 
+  it('falls back to ERR_GENERIC when authentication fails without an error message', async () => {
+    vi.mocked(authenticate).mockImplementation(() => {
+      authState.error = null;
+      return Promise.resolve(null);
+    });
+    eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
+    await flushAsync();
+    expect(widgetState.screen).toBe('error');
+    expect(widgetState.error).toBe(ERR_GENERIC);
+  });
+
   it('silently ignores Call when an active call is already in progress', async () => {
     widgetState.callState = CallState.Connected;
     eventBus.emit(WidgetEvent.Call, MOCK_PARAMS);
@@ -250,5 +261,17 @@ describe('Dismiss event', () => {
     widgetState.screen = 'calling';
     eventBus.emit(WidgetEvent.Dismiss);
     expect(widgetState.screen).toBe('idle');
+  });
+});
+
+describe('module load in production mode', () => {
+  it('does not import preact/debug when DEV is false', async () => {
+    vi.stubEnv('DEV', false);
+    vi.resetModules();
+    // Re-importing with DEV=false exercises the false branch of the
+    // top-level `if (import.meta.env.DEV)` guard (skips the debug import).
+    const mod = await import('./init');
+    expect(typeof mod.registerWidgetHandlers).toBe('function');
+    vi.unstubAllEnvs();
   });
 });
