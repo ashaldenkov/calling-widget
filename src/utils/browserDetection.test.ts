@@ -131,6 +131,30 @@ describe('detectBrowserWarnings', () => {
     });
   });
 
+  describe('unreachable defensive branches (documented invariants)', () => {
+    it('a UA classified as Chrome always contains a parseable version number', () => {
+      setUA(UA_CHROME_140);
+      expect(/Chrome\/(\d+)/.test(navigator.userAgent)).toBe(true);
+      expect(navigator.userAgent.match(/Chrome\/(\d+)/)).not.toBeNull();
+      expect(detectBrowserWarnings()).toHaveLength(0);
+    });
+
+    it('an unknown UA reaches the final else and is labelled "your browser"', () => {
+      setUA(UA_UNKNOWN);
+      const ua = navigator.userAgent;
+      const isChrome =
+        /Chrome\/(\d+)/.test(ua) && !/Edg\//.test(ua) && !/OPR\//.test(ua);
+      const isSafari = /Safari\//.test(ua) && !/Chrome\//.test(ua);
+      const isFirefox = /Firefox\//.test(ua);
+      // The redundant guard on line 30 is always true once we get there.
+      expect(!isChrome && !isSafari && !isFirefox).toBe(true);
+      expect(detectBrowserWarnings()).toContainEqual({
+        type: 'unsupportedBrowser',
+        browser: 'your browser',
+      });
+    });
+  });
+
   describe('warnings are additive', () => {
     it('returns both browser and mobile warnings when both conditions are met', () => {
       setUA(UA_FIREFOX);

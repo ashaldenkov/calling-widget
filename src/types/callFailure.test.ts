@@ -1,4 +1,4 @@
-import { reasonFromQ850 } from './callFailure';
+import { reasonFromQ850, reasonFromSipCode } from './callFailure';
 
 describe('reasonFromQ850', () => {
   describe('returns null for non-failure causes', () => {
@@ -74,5 +74,46 @@ describe('reasonFromQ850', () => {
       // parseInt('16.5') === 16 → normal hangup → null
       expect(reasonFromQ850('16.5')).toBeNull();
     });
+  });
+});
+
+describe('reasonFromSipCode', () => {
+  it('maps SIP busy codes (486, 600) to Busy', () => {
+    expect(reasonFromSipCode(486)).toEqual({ kind: 'Busy' });
+    expect(reasonFromSipCode(600)).toEqual({ kind: 'Busy' });
+  });
+
+  it('maps SIP no-answer codes (408, 480, 487) to NoAnswer', () => {
+    expect(reasonFromSipCode(408)).toEqual({ kind: 'NoAnswer' });
+    expect(reasonFromSipCode(480)).toEqual({ kind: 'NoAnswer' });
+    expect(reasonFromSipCode(487)).toEqual({ kind: 'NoAnswer' });
+  });
+
+  it('maps other 4xx/5xx codes to ProviderError with the code', () => {
+    expect(reasonFromSipCode(403)).toEqual({
+      kind: 'ProviderError',
+      cause: 403,
+    });
+    expect(reasonFromSipCode(503)).toEqual({
+      kind: 'ProviderError',
+      cause: 503,
+    });
+  });
+
+  it('parses numeric strings the same as numbers', () => {
+    expect(reasonFromSipCode('486')).toEqual({ kind: 'Busy' });
+  });
+
+  it('returns null for non-failure codes (< 400)', () => {
+    expect(reasonFromSipCode(200)).toBeNull();
+    expect(reasonFromSipCode(100)).toBeNull();
+    expect(reasonFromSipCode(302)).toBeNull();
+  });
+
+  it('returns null for non-numeric, null and undefined', () => {
+    expect(reasonFromSipCode('abc')).toBeNull();
+    expect(reasonFromSipCode('')).toBeNull();
+    expect(reasonFromSipCode(null)).toBeNull();
+    expect(reasonFromSipCode(undefined)).toBeNull();
   });
 });

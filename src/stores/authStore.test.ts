@@ -1,3 +1,4 @@
+import { ERR_GENERIC } from '../errors';
 import { resetWidgetState } from '../test/resetWidgetState';
 
 import { authenticate, authState, clearAuth, getToken } from './authStore';
@@ -71,6 +72,17 @@ describe('authenticate', () => {
     expect(authState.error).toBe('Invalid API key');
   });
 
+  it('prefers parsed.error, then parsed.message when the error body is JSON', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      errResponse(400, JSON.stringify({ message: 'json message wins' })),
+    );
+
+    const token = await authenticate();
+
+    expect(token).toBeNull();
+    expect(authState.error).toBe('json message wins');
+  });
+
   it('is single-flight — concurrent callers share one request', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -92,6 +104,51 @@ describe('authenticate', () => {
 
     expect(token).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('fails with "Widget not initialized" when config is missing', async () => {
+    widgetState.config = null; // credentials present, but no config
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const token = await authenticate();
+
+    expect(token).toBeNull();
+    expect(authState.error).toBe('Widget not initialized');
+    expect(fetchSpy).not.toHaveBeenCalled(); // throws before fetch
+  });
+
+  it('fails when the response is OK but carries no token', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse({}));
+
+    const token = await authenticate();
+
+    expect(token).toBeNull();
+    expect(authState.error).toBe('Integration auth: no token in response');
+  });
+
+  it('handles an error response whose body cannot be read', async () => {
+    // response.text() rejecting exercises the `.catch(() => '')` fallback.
+    const brokenBody = {
+      ok: false,
+      status: 500,
+      text: () => Promise.reject(new Error('stream error')),
+    } as unknown as Response;
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(brokenBody);
+
+    const token = await authenticate();
+
+    expect(token).toBeNull();
+    expect(authState.error).toBeTruthy(); // mapHttpError(500, undefined)
+  });
+
+  it('falls back to ERR_GENERIC when the rejection is not an Error', async () => {
+    // fetch rejecting with a non-Error string hits the `: ERR_GENERIC` branch.
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue('socket hang up');
+
+    const token = await authenticate();
+
+    expect(token).toBeNull();
+    expect(authState.error).toBe(ERR_GENERIC);
   });
 });
 

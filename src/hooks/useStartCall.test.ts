@@ -143,6 +143,23 @@ describe('startCall', () => {
     });
   });
 
+  it('emits CallStateChange with clientId=undefined when extCustomerId is null', async () => {
+    widgetState.extCustomerId = null;
+    vi.mocked(api).mockResolvedValue({
+      bridgeId: 'b-1',
+      targetUri: 'sip:x@x.com',
+    });
+    const spy = vi.spyOn(eventBus, 'emit');
+    const { result } = renderHook(() => useStartCall());
+    await act(async () => {
+      await result.current('trunk-1');
+    });
+    expect(spy).toHaveBeenCalledWith(WidgetEvent.CallStateChange, {
+      state: CallState.Calling,
+      clientId: undefined,
+    });
+  });
+
   it('calls makeCall with the API response after setting state', async () => {
     const makeCall = vi.fn().mockResolvedValue(undefined);
     vi.mocked(useJanusCall).mockReturnValue({
@@ -157,6 +174,53 @@ describe('startCall', () => {
       bridgeId: 'bridge-1',
       targetUri: 'sip:t@t.com',
     });
+  });
+});
+
+describe('auto-restart after reload', () => {
+  const armAutoRestart = () => {
+    widgetState.config = {
+      apiBaseUrl: 'https://api.test',
+      webBaseUrl: 'https://web.test',
+      janusWsUrl: 'wss://janus.test',
+    };
+    widgetState.apiKey = 'key-abc';
+    widgetState.selectedTrunkId = 'trunk-restore';
+    widgetState.customerData = { dialerId: '1' } as never;
+    widgetState.screen = 'calling';
+    widgetState.callState = CallState.Idle;
+  };
+
+  it('resumes the call once when the widget reloads mid-call (screen=calling, callState=Idle)', async () => {
+    armAutoRestart();
+    await act(async () => {
+      renderHook(() => useStartCall());
+      // Let the effect fire and the async startCall settle (claimCall -> api).
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // startCall ran with the persisted trunk -> API hit for that call.
+    expect(api).toHaveBeenCalledWith(
+      '/customers/1/call',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('does not auto-restart a second time on re-render (autoRestartedRef guard)', async () => {
+    armAutoRestart();
+    const { rerender } = renderHook(() => useStartCall());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const callsAfterFirst = vi.mocked(api).mock.calls.length;
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+    expect(vi.mocked(api).mock.calls.length).toBe(callsAfterFirst);
   });
 });
 
@@ -225,6 +289,27 @@ describe('handleEvent', () => {
     });
   });
 
+  it('Failed with neither reason nor message → falls back to ERR_GENERIC notification', () => {
+    widgetState.callState = CallState.Connected;
+    widgetState.currentBridgeId = 'bridge-1';
+    renderHook(() => useStartCall());
+    const { onEvent } = getJanusCallbacks();
+    onEvent({ state: CallState.Failed, bridgeId: 'bridge-1' });
+    expect(widgetState.notification).toBe(ERR_GENERIC);
+  });
+
+  it('emits CallStateChange with clientId=undefined when extCustomerId is null', () => {
+    widgetState.extCustomerId = null;
+    renderHook(() => useStartCall());
+    const { onEvent } = getJanusCallbacks();
+    const spy = vi.spyOn(eventBus, 'emit');
+    onEvent({ state: CallState.Ringing });
+    expect(spy).toHaveBeenCalledWith(WidgetEvent.CallStateChange, {
+      state: CallState.Ringing,
+      clientId: undefined,
+    });
+  });
+
   it('Failed (stale bridgeId) → ignored — does not affect state or emit', () => {
     widgetState.callState = CallState.Connected;
     widgetState.currentBridgeId = 'bridge-current';
@@ -281,6 +366,24 @@ describe('handleEvent', () => {
     const spy = vi.spyOn(eventBus, 'emit');
     onEvent({ state: CallState.Ended, bridgeId: 'bridge-OLD' });
     expect(widgetState.callState).toBe(CallState.Connected);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('Failed while callState is already terminal (Idle) → treated as stale and ignored', () => {
+    // isStale() returns true purely on the terminal callState, regardless of
+    // bridgeId — a late event on an already-idle widget must be a no-op.
+    widgetState.callState = CallState.Idle;
+    widgetState.currentBridgeId = 'bridge-1';
+    renderHook(() => useStartCall());
+    const { onEvent } = getJanusCallbacks();
+    const spy = vi.spyOn(eventBus, 'emit');
+    onEvent({
+      state: CallState.Failed,
+      bridgeId: 'bridge-1',
+      reason: { kind: 'Busy' },
+    });
+    expect(widgetState.callState).toBe(CallState.Idle); // unchanged
+    expect(releaseCall).not.toHaveBeenCalled();
     expect(spy).not.toHaveBeenCalled();
   });
 });

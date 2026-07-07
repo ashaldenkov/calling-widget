@@ -29,3 +29,16 @@ export const reasonFromQ850 = (cause: unknown): CallFailReason | null => {
   if (Q850_NO_ANSWER_CODES.has(n)) return { kind: 'NoAnswer' };
   return { kind: 'ProviderError', cause: n };
 };
+
+const SIP_BUSY_CODES: ReadonlySet<number> = new Set([486, 600]); // Busy Here, Busy Everywhere
+const SIP_NO_ANSWER_CODES: ReadonlySet<number> = new Set([408, 480, 487]); // Request Timeout, Temporarily Unavailable, Request Terminated
+
+// Fallback classifier for hangups that carry no Q.850 Reason header — maps the
+// raw SIP status code. Only 4xx+ are failures; 1xx/2xx/3xx are not.
+export const reasonFromSipCode = (code: unknown): CallFailReason | null => {
+  const n = Number.parseInt(String(code), 10);
+  if (!Number.isFinite(n) || n < 400) return null;
+  if (SIP_BUSY_CODES.has(n)) return { kind: 'Busy' };
+  if (SIP_NO_ANSWER_CODES.has(n)) return { kind: 'NoAnswer' };
+  return { kind: 'ProviderError', cause: n };
+};
