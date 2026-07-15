@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Call Widget Dev Mode</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+    />
+    <style>
+      body {
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f6f8fb;
+      }
+      #dev-controls {
+        max-width: 360px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      #dev-controls h1 {
+        font-size: 18px;
+        margin: 0 0 8px;
+      }
+      #dev-controls p {
+        font-size: 13px;
+        color: #556;
+        margin: 0 0 8px;
+      }
+      #dev-controls button {
+        padding: 8px 12px;
+        font: inherit;
+        border-radius: 6px;
+        border: 1px solid #b6bbc5;
+        background: white;
+        cursor: pointer;
+      }
+      #dev-controls button:hover {
+        background: #ebf9ff;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="dev-controls">
+      <h1>Call Widget — dev harness</h1>
+      <p>Backendless demo build. Calls loop your microphone back to you.</p>
+      <button id="btn-call" type="button">Make demo call</button>
+      <button id="btn-theme" type="button">Toggle light / dark</button>
+      <button id="btn-dismiss" type="button">Dismiss</button>
+    </main>
+    <script type="module" src="/src/localDev.tsx"></script>
+  </body>
+</html>

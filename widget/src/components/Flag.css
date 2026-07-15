@@ -1,0 +1,9 @@
+@layer primitives {
+  .cw-flag {
+    display: inline-block;
+    flex-shrink: 0;
+    border-radius: 2px;
+    overflow: hidden;
+    object-fit: cover;
+  }
+}
