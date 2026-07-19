@@ -6,7 +6,7 @@ import { useStartCall } from '../hooks/useStartCall';
 import {
   ChangeStatusScreen,
   CollapsedCallBar,
-  CompatibilityWarningScreen,
+  DemoNoticeScreen,
   ErrorScreen,
   ExpandedCallBar,
   SipTrunkScreen,
@@ -26,14 +26,7 @@ import { ActiveCallStates, CallState } from '../types/types';
 const STATUS_SAVE_DELAY_MS = 1000;
 
 export const ExternalCallWidget = () => {
-  const {
-    screen,
-    callState,
-    customerData,
-    error,
-    isCollapsed,
-    compatibilityWarnings,
-  } = widgetState;
+  const { screen, callState, customerData, error, isCollapsed } = widgetState;
 
   const startCall = useStartCall();
   const callParent = useRef<HTMLDivElement>(null);
@@ -86,7 +79,7 @@ export const ExternalCallWidget = () => {
   // Backendless demo: status changes are applied to the in-memory customer
   // record after a short simulated delay, then reflected to the host via event.
   const handleStatusSave = useCallback(
-    async (statusId: string, _comment: string) => {
+    async (statusId: string, comment: string) => {
       await new Promise((resolve) => setTimeout(resolve, STATUS_SAVE_DELAY_MS));
 
       const current = widgetState.customerData;
@@ -101,6 +94,7 @@ export const ExternalCallWidget = () => {
         customerId: current.id,
         statusId,
         status,
+        comment: comment || undefined,
       });
 
       if (ActiveCallStates.has(widgetState.callState)) {
@@ -137,11 +131,10 @@ export const ExternalCallWidget = () => {
             : 'none',
       }}
     >
-      {screen === 'compatibilityWarning' && (
-        <CompatibilityWarningScreen
-          warnings={compatibilityWarnings}
+      {screen === 'demoNotice' && (
+        <DemoNoticeScreen
           onContinue={() => {
-            localStorage.setItem('cw-compat-warned', '1');
+            localStorage.setItem('cw-demo-notice-ack', '1');
             setScreen('sipTrunk');
           }}
           onDismiss={handleDismiss}

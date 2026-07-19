@@ -1,4 +1,4 @@
-import type { StatusOption, StatusesResponse } from '../types/types';
+import type { StatusOption } from '../types/types';
 
 /**
  * Default dialer statuses used when the host does not pass its own list via the
@@ -23,34 +23,10 @@ export const DEMO_STATUSES: StatusOption[] = [
 ];
 
 /**
- * Client-side paginator that mimics the old paginated `/statuses` endpoint.
- * Resolves after a short delay to imitate network latency.
+ * Loads the full status list once, after a short delay to imitate the initial
+ * fetch (so the screen shows its spinner). Everything is local, so search is done
+ * client-side afterwards — no pagination.
  */
-export function paginateStatuses(
-  source: StatusOption[],
-  { page, perPage, search }: { page: number; perPage: number; search?: string },
-): Promise<StatusesResponse> {
-  const term = (search ?? '').trim().toLowerCase();
-  const filtered = term
-    ? source.filter((s) => s.name.toLowerCase().includes(term))
-    : source;
-
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  const start = (page - 1) * perPage;
-  const items = filtered.slice(start, start + perPage);
-
-  const response: StatusesResponse = {
-    items,
-    pageInfo: {
-      page,
-      perPage,
-      total,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    },
-  };
-
-  return new Promise((resolve) => setTimeout(() => resolve(response), 250));
+export function loadStatuses(source: StatusOption[]): Promise<StatusOption[]> {
+  return new Promise((resolve) => setTimeout(() => resolve(source), 250));
 }

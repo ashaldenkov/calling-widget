@@ -1,19 +1,4 @@
 import { act, renderHook } from '@testing-library/preact';
-import type { Timezone } from 'countries-and-timezones';
-import type { TCountryCode } from 'countries-list';
-
-const { getTimezonesForCountryMock } = vi.hoisted(() => ({
-  getTimezonesForCountryMock:
-    vi.fn<typeof import('countries-and-timezones').getTimezonesForCountry>(),
-}));
-
-vi.mock('countries-and-timezones', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('countries-and-timezones')>();
-  // Default to the real implementation; individual tests override the mock.
-  getTimezonesForCountryMock.mockImplementation(actual.getTimezonesForCountry);
-  return { ...actual, getTimezonesForCountry: getTimezonesForCountryMock };
-});
 
 import { eventBus, WidgetEvent } from './eventBus';
 import { widgetState } from './stores/widgetStore';
@@ -96,9 +81,7 @@ describe('useLocalTime', () => {
   });
 
   it('returns "-" for a country code that resolves to no timezone', () => {
-    const { result } = renderHook(() =>
-      useLocalTime('not-a-country' as TCountryCode),
-    );
+    const { result } = renderHook(() => useLocalTime('not-a-country'));
     expect(result.current).toBe('-');
   });
 
@@ -118,7 +101,7 @@ describe('useLocalTime', () => {
   it('does not start an interval when the country is unresolvable', () => {
     vi.useFakeTimers();
     const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
-    renderHook(() => useLocalTime('zz-invalid' as TCountryCode));
+    renderHook(() => useLocalTime('zz-invalid'));
     expect(setIntervalSpy).not.toHaveBeenCalled();
   });
 
@@ -130,11 +113,8 @@ describe('useLocalTime', () => {
     expect(clearSpy).toHaveBeenCalled();
   });
 
-  it('returns "-" when the resolved timezone is invalid and Intl throws', () => {
-    getTimezonesForCountryMock.mockReturnValue([
-      { name: 'Not/A_Real_Timezone' } as unknown as Timezone,
-    ]);
-    const { result } = renderHook(() => useLocalTime('XX' as TCountryCode));
+  it('returns "-" for an unknown country code (no mapped timezone)', () => {
+    const { result } = renderHook(() => useLocalTime('XX'));
     expect(result.current).toBe('-');
   });
 });

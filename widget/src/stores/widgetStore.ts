@@ -6,13 +6,11 @@ import {
   CallState,
   type CallParams,
   type CustomerData,
-  type StatusOption,
   type ThemeSettings,
   type WidgetInitOptions,
   type WidgetScreen,
   type WidgetState,
 } from '../types/types';
-import type { BrowserWarning } from '../utils/browserDetection';
 
 const initialState: WidgetState = {
   initOptions: null,
@@ -31,7 +29,6 @@ const initialState: WidgetState = {
   selectedTrunkId: null,
   statusConfirmedDuringCall: false,
   isCollapsed: true,
-  compatibilityWarnings: [],
 };
 
 // Backendless demo: purely in-memory state, no persistence/hydration.
@@ -96,10 +93,6 @@ export const setCustomerData = (data: CustomerData | null): void => {
   widgetState.customerData = data;
 };
 
-export const setStatuses = (statuses: StatusOption[]): void => {
-  widgetState.statuses = statuses;
-};
-
 export const setSelectedTrunkId = (id: string | null): void => {
   widgetState.selectedTrunkId = id;
 };
@@ -110,10 +103,6 @@ export const setStatusConfirmedDuringCall = (confirmed: boolean): void => {
 
 export const setIsCollapsed = (v: boolean): void => {
   widgetState.isCollapsed = v;
-};
-
-export const setCompatibilityWarnings = (warnings: BrowserWarning[]): void => {
-  widgetState.compatibilityWarnings = warnings;
 };
 
 export const resetToIdle = (): void => {

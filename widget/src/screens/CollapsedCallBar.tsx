@@ -1,5 +1,4 @@
 import { useSignalEffect } from '@preact/signals';
-import { getCountryData } from 'countries-list';
 import { useRef } from 'preact/hooks';
 
 import { ArrowDropUpIcon, CallEndOutlinedIcon } from '../assets/icons';
@@ -10,6 +9,7 @@ import { setIsCollapsed } from '../stores/widgetStore';
 import type { CustomerData } from '../types/types';
 import { Divider, IconButton, Tooltip } from '../ui';
 import { callStatus, useLocalTime } from '../utils';
+import { countryName } from '../utils/country';
 
 interface CollapsedCallBarProps {
   customer: CustomerData;
@@ -35,7 +35,7 @@ const CollapsedCallBar = ({ customer, onEndCall }: CollapsedCallBarProps) => {
   const localTime = useLocalTime(customer.country);
   const customerName = `${customer.firstName} ${customer.lastName}`;
   const brandName = customer.brandName || '-';
-  const countryName = getCountryData(customer.country).name;
+  const countryLabel = countryName(customer.country);
 
   return (
     <div class='cw-bar'>
@@ -47,7 +47,7 @@ const CollapsedCallBar = ({ customer, onEndCall }: CollapsedCallBarProps) => {
             <Flag country={customer.country} title={customer.country} />
             <span class='cw-text-body3 cw-text-secondary'>
               {customer.country}
-              {countryName ? ` / ${countryName}` : ''}
+              {countryLabel ? ` / ${countryLabel}` : ''}
             </span>
           </div>
           <span class='cw-text-body3 cw-text-secondary'>

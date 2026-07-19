@@ -1,5 +1,5 @@
 import autoAnimate from '@formkit/auto-animate';
-import { useInfiniteQuery } from '@tanstack/preact-query';
+import { useQuery } from '@tanstack/preact-query';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 
 import { InfoOutlinedIcon } from '../assets/icons';
@@ -9,10 +9,10 @@ import CommentField, {
 } from '../components/CommentField';
 import SearchField from '../components/SearchField';
 import StatusesList from '../components/StatusesList';
-import { paginateStatuses } from '../demo-data/statuses';
+import { loadStatuses } from '../demo-data/statuses';
 import { ERR_GENERIC, getErrorMessage } from '../errors';
 import { widgetState } from '../stores/widgetStore';
-import type { StatusOption, StatusesResponse } from '../types/types';
+import type { StatusOption } from '../types/types';
 import { Button, Tooltip } from '../ui';
 
 interface ChangeStatusScreenProps {
@@ -42,33 +42,25 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
     return () => ctrl.destroy?.();
   }, []);
 
-  const {
-    data,
-    isLoading,
-    isError,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useInfiniteQuery<StatusesResponse>({
-    queryKey: ['statuses', { perPage: 25, search: searchQuery || undefined }],
-    queryFn: ({ pageParam }) =>
-      paginateStatuses(widgetState.statuses, {
-        page: (pageParam as number) ?? 1,
-        perPage: 25,
-        search: searchQuery || undefined,
-      }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.pageInfo.hasNextPage ? lastPage.pageInfo.page + 1 : undefined,
+  // Local demo: load the full list once, then filter client-side (no debounce,
+  // no pagination) — the list animates on filter like the trunk list.
+  const { data, isLoading, isError } = useQuery<StatusOption[]>({
+    queryKey: ['statuses'],
+    queryFn: () => loadStatuses(widgetState.statuses),
+    staleTime: Infinity,
   });
 
   const allStatuses = useMemo<StatusOption[]>(() => {
-    const pages = data?.pages.flatMap((p) => p.items) ?? [];
-    if (currentStatus && !searchQuery) {
-      const rest = pages.filter((s) => s.id !== currentStatus.id);
+    const all = data ?? [];
+    const term = searchQuery.trim().toLowerCase();
+    const filtered = term
+      ? all.filter((s) => s.name.toLowerCase().includes(term))
+      : all;
+    if (currentStatus && !term) {
+      const rest = filtered.filter((s) => s.id !== currentStatus.id);
       return [currentStatus, ...rest];
     }
-    return pages;
+    return filtered;
   }, [data, currentStatus, searchQuery]);
 
   const isSubmitDisabled =
@@ -104,7 +96,7 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
         </div>
 
         <div class='cw-screen-change-status__main'>
-          <SearchField onChange={setSearchQuery} />
+          <SearchField onChange={setSearchQuery} debounceMs={0} />
 
           <div class='cw-screen-list cw-scroll cw-screen-change-status__list'>
             <StatusesList
@@ -114,9 +106,6 @@ const ChangeStatusScreen = ({ onSave, onCancel }: ChangeStatusScreenProps) => {
               searchQuery={searchQuery}
               isLoading={isLoading}
               isError={isError}
-              isFetchingNextPage={isFetchingNextPage}
-              hasNextPage={hasNextPage}
-              onFetchNextPage={() => void fetchNextPage()}
             />
           </div>
 

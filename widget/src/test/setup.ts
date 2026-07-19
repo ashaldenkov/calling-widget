@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 // jsdom 26 + vitest 4 may expose Storage objects that throw on access
 // Replace them with simple in-memory shims so widgetStore (sessionStorage)
-// and init.ts (localStorage for cw-compat-warned) work in tests.
+// and init.ts (localStorage for cw-demo-notice-ack) work in tests.
 function installMemoryStorage(key: 'sessionStorage' | 'localStorage') {
   const memory = new Map<string, string>();
   Object.defineProperty(globalThis, key, {

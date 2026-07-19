@@ -13,6 +13,12 @@
     "build:demo": "npm run build:widget && npm run copy:widget && npm -w demo run build",
     "dev:demo": "npm run build:widget && npm run copy:widget && npm -w demo run dev",
     "lint": "npm -w widget run lint",
-    "test": "npm -w widget run test"
+    "test": "npm -w widget run test",
+    "analyze": "npm -w widget run analyze",
+    "predeploy": "npm run build:demo",
+    "deploy": "gh-pages -d demo/dist"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
   }
 }

@@ -1,5 +1,4 @@
 import { useSignalEffect } from '@preact/signals';
-import { getCountryData } from 'countries-list';
 import { useRef } from 'preact/hooks';
 
 import {
@@ -14,6 +13,7 @@ import { setIsCollapsed, setScreen, widgetState } from '../stores/widgetStore';
 import type { CustomerData } from '../types/types';
 import { Button, Chip, Divider, IconButton } from '../ui';
 import { callStatus, useLocalTime } from '../utils';
+import { countryName } from '../utils/country';
 
 interface ExpandedCallBarProps {
   customer: CustomerData;
@@ -40,7 +40,7 @@ const ExpandedCallBar = ({ customer, onEndCall }: ExpandedCallBarProps) => {
 
   const localTime = useLocalTime(customer.country);
   const customerName = `${customer.firstName} ${customer.lastName}`;
-  const countryName = getCountryData(customer.country).name;
+  const countryLabel = countryName(customer.country);
 
   const webBaseUrl = widgetState.initOptions?.webBaseUrl;
   const handleGoToProfile = () => {
@@ -70,7 +70,7 @@ const ExpandedCallBar = ({ customer, onEndCall }: ExpandedCallBarProps) => {
               <Flag country={customer.country} title={customer.country} />
               <span class='cw-text-body3 cw-text-secondary'>
                 {customer.country}
-                {countryName ? ` / ${countryName}` : ''}
+                {countryLabel ? ` / ${countryLabel}` : ''}
               </span>
             </div>
             <span class='cw-text-body3 cw-text-secondary'>

@@ -38,6 +38,7 @@ export interface WidgetEventPayloads {
     customerId: string;
     statusId: string;
     status: CustomerStatus;
+    comment?: string;
   };
   [WidgetEvent.StatusChangeSkipped]: { customerId: string };
 }

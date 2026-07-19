@@ -4,6 +4,7 @@ import {
   ERR_CUSTOMER_DATA,
   ERR_GENERIC,
   ERR_MIC_DISCONNECTED,
+  ERR_NO_AUDIO,
 } from '../errors';
 import { eventBus, WidgetEvent } from '../eventBus';
 import {
@@ -64,9 +65,20 @@ export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
     eventBus.emit(WidgetEvent.Error, { message: ERR_MIC_DISCONNECTED });
   }, []);
 
+  const handleSilence = useCallback(() => {
+    setNotification(ERR_NO_AUDIO);
+    eventBus.emit(WidgetEvent.Error, { message: ERR_NO_AUDIO });
+  }, []);
+
+  const handleSound = useCallback(() => {
+    if (widgetState.notification === ERR_NO_AUDIO) setNotification(null);
+  }, []);
+
   const { makeCall } = useMockCall({
     onEvent: handleEvent,
     onMicDisconnected: handleMicDisconnected,
+    onSilence: handleSilence,
+    onSound: handleSound,
   });
 
   const startCall = useCallback(

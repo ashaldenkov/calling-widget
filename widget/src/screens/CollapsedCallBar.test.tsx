@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact';
-import type { TCountryCode } from 'countries-list';
 
 vi.mock('../utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../utils')>();
@@ -54,7 +53,7 @@ describe('CollapsedCallBar', () => {
     });
 
     it('renders the country as "<code> / <name>" when getCountryData resolves the code', () => {
-      const customer = { ...mockCustomer, country: 'CA' as TCountryCode };
+      const customer = { ...mockCustomer, country: 'CA' };
       const { container } = render(
         <CollapsedCallBar customer={customer} onEndCall={vi.fn()} />,
       );
@@ -64,7 +63,7 @@ describe('CollapsedCallBar', () => {
     });
 
     it('renders only the raw country code when getCountryData cannot resolve a name', () => {
-      const customer = { ...mockCustomer, country: 'string' as TCountryCode };
+      const customer = { ...mockCustomer, country: 'string' };
       const { container } = render(
         <CollapsedCallBar customer={customer} onEndCall={vi.fn()} />,
       );
@@ -165,7 +164,7 @@ describe('CollapsedCallBar', () => {
 
   describe('local time', () => {
     it("passes the customer's country to useLocalTime so the rendered time matches that country", () => {
-      const customer = { ...mockCustomer, country: 'JP' as TCountryCode };
+      const customer = { ...mockCustomer, country: 'JP' };
       render(<CollapsedCallBar customer={customer} onEndCall={vi.fn()} />);
       expect(useLocalTime).toHaveBeenCalledWith('JP');
     });

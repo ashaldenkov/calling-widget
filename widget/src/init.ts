@@ -8,15 +8,14 @@ import {
   applyTheme,
   resetToIdle,
   setCallParams,
-  setCompatibilityWarnings,
   setInitOptions,
   setScreen,
   widgetState,
 } from './stores/widgetStore';
 import { ActiveCallStates } from './types/types';
-import { detectBrowserWarnings } from './utils/browserDetection';
 
 const LOG_PREFIX = '[CallWidget]';
+const DEMO_NOTICE_ACK = 'cw-demo-notice-ack';
 
 export function registerWidgetHandlers(ensureMount: () => void): void {
   let mounted = false;
@@ -62,12 +61,12 @@ export function registerWidgetHandlers(ensureMount: () => void): void {
 
     setCallParams(params);
 
-    const warnings = detectBrowserWarnings();
-    if (warnings.length === 0 || localStorage.getItem('cw-compat-warned')) {
+    // First run in this browser shows the demo notice; afterwards go straight
+    // to trunk selection.
+    if (localStorage.getItem(DEMO_NOTICE_ACK)) {
       setScreen('sipTrunk');
     } else {
-      setCompatibilityWarnings(warnings);
-      setScreen('compatibilityWarning');
+      setScreen('demoNotice');
     }
   });
 

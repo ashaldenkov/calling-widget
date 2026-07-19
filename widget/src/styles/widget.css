@@ -25,7 +25,6 @@
 @import '../screens/CollapsedCallBar.css';
 @import '../screens/ChangeStatusScreen.css';
 @import '../screens/ErrorScreen.css';
-@import '../screens/CompatibilityWarningScreen.css';
 
 @layer screens {
   .cw-flex-center {

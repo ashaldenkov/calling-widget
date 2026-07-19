@@ -19,5 +19,4 @@ export function resetWidgetState(): void {
   widgetState.selectedTrunkId = null;
   widgetState.statusConfirmedDuringCall = false;
   widgetState.isCollapsed = true;
-  widgetState.compatibilityWarnings = [];
 }

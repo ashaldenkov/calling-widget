@@ -1,6 +1,4 @@
 import { effect } from '@preact/signals';
-import { getTimezonesForCountry } from 'countries-and-timezones';
-import type { TCountryCode } from 'countries-list';
 import { deepSignal } from 'deepsignal';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 
@@ -12,6 +10,7 @@ import {
   widgetState,
 } from './stores/widgetStore';
 import { CallState } from './types/types';
+import { countryTimeZone } from './utils/country';
 
 export const handleWidgetError = (fallback: string, error?: unknown): void => {
   const message = error instanceof Error ? error.message : fallback;
@@ -37,13 +36,8 @@ const formatLocalTime = (timezone: string): string => {
   }
 };
 
-const getTimezone = (countryCode: TCountryCode): string | null => {
-  const timezones = getTimezonesForCountry(countryCode.toUpperCase());
-  return timezones?.[0]?.name ?? null;
-};
-
-export const useLocalTime = (countryCode: TCountryCode): string => {
-  const timezone = useMemo(() => getTimezone(countryCode), [countryCode]);
+export const useLocalTime = (countryCode: string): string => {
+  const timezone = useMemo(() => countryTimeZone(countryCode), [countryCode]);
 
   const [localTime, setLocalTime] = useState(() =>
     timezone ? formatLocalTime(timezone) : '-',

@@ -1,11 +1,14 @@
 import { act, renderHook } from '@testing-library/preact';
 
-import { ERR_MIC_PERMISSION } from '../errors';
+import { ERR_MIC_DISCONNECTED, ERR_MIC_PERMISSION } from '../errors';
 import { widgetState } from '../stores/widgetStore';
 import { resetWidgetState } from '../test/resetWidgetState';
 import { CallState } from '../types/types';
 
 import { type MockCallEvent, useMockCall } from './useMockCall';
+
+// Mic level the fake analyser reports (0 = silence).
+let analyserLevel = 0;
 
 class FakeAudioContext {
   state = 'running';
@@ -18,6 +21,12 @@ class FakeAudioContext {
     delayTime: { value: 0 },
     connect: vi.fn(),
     disconnect: vi.fn(),
+  }));
+  createAnalyser = vi.fn(() => ({
+    fftSize: 512,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    getFloatTimeDomainData: (arr: Float32Array) => arr.fill(analyserLevel),
   }));
   resume = vi.fn().mockResolvedValue(undefined);
   close = vi.fn().mockResolvedValue(undefined);
@@ -41,6 +50,7 @@ const makeStream = () => {
 
 beforeEach(() => {
   resetWidgetState();
+  analyserLevel = 0;
   vi.useFakeTimers();
   vi.stubGlobal('AudioContext', FakeAudioContext);
   vi.stubGlobal('webkitAudioContext', undefined);
@@ -136,5 +146,53 @@ describe('useMockCall', () => {
       widgetState.isMicMuted = false;
     });
     expect(micTrack.enabled).toBe(true);
+  });
+
+  it('reports "device missing" (not permission) when getUserMedia has no device', async () => {
+    getUserMedia.mockRejectedValueOnce(
+      Object.assign(new Error('no device'), { name: 'NotFoundError' }),
+    );
+    const events: MockCallEvent[] = [];
+    const { result } = renderHook(() =>
+      useMockCall({ onEvent: (e) => events.push(e) }),
+    );
+
+    await act(async () => {
+      await result.current.makeCall();
+    });
+
+    expect(events.at(-1)).toMatchObject({
+      state: CallState.Failed,
+      message: ERR_MIC_DISCONNECTED,
+    });
+  });
+
+  it('fires onSilence after prolonged silence, then onSound when audio returns', async () => {
+    const onSilence = vi.fn();
+    const onSound = vi.fn();
+    const { result } = renderHook(() => useMockCall({ onSilence, onSound }));
+
+    await act(async () => {
+      await result.current.makeCall();
+    });
+    // Reach Connected (starts the loopback + monitor).
+    await act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    // The monitor gates on the store's callState.
+    widgetState.callState = CallState.Connected;
+
+    // Silence (analyserLevel = 0) for longer than the grace period.
+    await act(() => {
+      vi.advanceTimersByTime(4500);
+    });
+    expect(onSilence).toHaveBeenCalledTimes(1);
+
+    // Audio returns → onSound once.
+    analyserLevel = 0.5;
+    await act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(onSound).toHaveBeenCalledTimes(1);
   });
 });

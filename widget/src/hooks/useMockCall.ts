@@ -2,7 +2,11 @@ import { effect } from '@preact/signals';
 import type { RefObject } from 'preact';
 import { useCallback, useEffect, useMemo, useRef } from 'preact/hooks';
 
-import { ERR_MIC_PERMISSION, getErrorMessage } from '../errors';
+import {
+  ERR_MIC_DISCONNECTED,
+  ERR_MIC_PERMISSION,
+  getErrorMessage,
+} from '../errors';
 import { hangUpRef } from '../stores/callControl';
 import { widgetState } from '../stores/widgetStore';
 import { CallState } from '../types/types';
@@ -19,6 +23,12 @@ const LOOPBACK_DELAY_SECONDS = 0.25;
 const RINGING_DELAY_MS = 1500;
 const CONNECTED_DELAY_MS = 3000;
 
+// Silence detection: warn if the mic stays effectively silent (while not muted)
+// for this long during a connected call.
+const MONITOR_INTERVAL_MS = 500;
+const SILENCE_GRACE_MS = 4000;
+const SILENCE_RMS_THRESHOLD = 0.008;
+
 export interface MockCallEvent {
   state: CallState;
   message?: string;
@@ -28,6 +38,8 @@ export interface MockCallEvent {
 export interface UseMockCallOptions {
   onEvent?: (event: MockCallEvent) => void;
   onMicDisconnected?: () => void;
+  onSilence?: () => void;
+  onSound?: () => void;
 }
 
 export interface UseMockCallReturn {
@@ -39,14 +51,34 @@ interface AudioRefs {
   contextRef: RefObject<AudioContext>;
   sourceRef: RefObject<MediaStreamAudioSourceNode>;
   delayRef: RefObject<DelayNode>;
+  analyserRef: RefObject<AnalyserNode>;
   unlockAudioRef: RefObject<HTMLAudioElement>;
 }
+
+const isNoDeviceError = (err: unknown): boolean => {
+  const name = (err as DOMException)?.name;
+  return (
+    name === 'NotFoundError' ||
+    name === 'NotReadableError' ||
+    name === 'OverconstrainedError'
+  );
+};
+
+const rms = (buf: Float32Array): number => {
+  let sum = 0;
+  for (let i = 0; i < buf.length; i += 1) sum += buf[i] * buf[i];
+  return Math.sqrt(sum / buf.length);
+};
 
 const teardownAudio = (refs: AudioRefs) => {
   try {
     if (refs.unlockAudioRef.current) {
       refs.unlockAudioRef.current.srcObject = null;
       refs.unlockAudioRef.current = null;
+    }
+    if (refs.analyserRef.current) {
+      refs.analyserRef.current.disconnect();
+      refs.analyserRef.current = null;
     }
     if (refs.delayRef.current) {
       refs.delayRef.current.disconnect();
@@ -79,8 +111,14 @@ const startLoopback = (stream: MediaStream, refs: AudioRefs) => {
     source.connect(delay);
     delay.connect(ctx.destination);
 
+    // Tap the mic level for silence detection (analyser is a dead-end node).
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    source.connect(analyser);
+
     refs.sourceRef.current = source;
     refs.delayRef.current = delay;
+    refs.analyserRef.current = analyser;
 
     if (ctx.state === 'suspended') {
       void ctx.resume().catch(() => {});
@@ -98,6 +136,8 @@ const startLoopback = (stream: MediaStream, refs: AudioRefs) => {
 export const useMockCall = ({
   onEvent,
   onMicDisconnected,
+  onSilence,
+  onSound,
 }: UseMockCallOptions): UseMockCallReturn => {
   const streamRef = useRef<MediaStream | null>(null);
   const micTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -107,11 +147,16 @@ export const useMockCall = ({
   const contextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const delayRef = useRef<DelayNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const unlockAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioRefs = useMemo<AudioRefs>(
-    () => ({ contextRef, sourceRef, delayRef, unlockAudioRef }),
+    () => ({ contextRef, sourceRef, delayRef, analyserRef, unlockAudioRef }),
     [],
   );
+
+  const monitorRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silentMsRef = useRef(0);
+  const warnedRef = useRef(false);
 
   const emitEvent = useCallback(
     (event: MockCallEvent) => onEvent?.(event),
@@ -121,7 +166,47 @@ export const useMockCall = ({
   const clearTimers = useCallback(() => {
     timersRef.current.forEach((t) => clearTimeout(t));
     timersRef.current = [];
+    if (monitorRef.current) {
+      clearInterval(monitorRef.current);
+      monitorRef.current = null;
+    }
+    silentMsRef.current = 0;
+    warnedRef.current = false;
   }, []);
+
+  // Watch mic input level during a connected call; warn on prolonged silence
+  // (while not muted), and clear the warning once sound returns.
+  const startSilenceMonitor = useCallback(() => {
+    const buf = new Float32Array(analyserRef.current?.fftSize ?? 512);
+    monitorRef.current = setInterval(() => {
+      const analyser = analyserRef.current;
+      if (
+        !analyser ||
+        !activeRef.current ||
+        widgetState.callState !== CallState.Connected
+      ) {
+        return;
+      }
+      if (widgetState.isMicMuted) {
+        silentMsRef.current = 0;
+        return;
+      }
+      analyser.getFloatTimeDomainData(buf);
+      if (rms(buf) < SILENCE_RMS_THRESHOLD) {
+        silentMsRef.current += MONITOR_INTERVAL_MS;
+        if (silentMsRef.current >= SILENCE_GRACE_MS && !warnedRef.current) {
+          warnedRef.current = true;
+          onSilence?.();
+        }
+      } else {
+        silentMsRef.current = 0;
+        if (warnedRef.current) {
+          warnedRef.current = false;
+          onSound?.();
+        }
+      }
+    }, MONITOR_INTERVAL_MS);
+  }, [onSilence, onSound]);
 
   const stopMedia = useCallback(() => {
     clearTimers();
@@ -154,7 +239,9 @@ export const useMockCall = ({
       console.error(`${LOG_PREFIX} getUserMedia:`, err);
       emitEvent({
         state: CallState.Failed,
-        message: ERR_MIC_PERMISSION,
+        message: isNoDeviceError(err)
+          ? ERR_MIC_DISCONNECTED
+          : ERR_MIC_PERMISSION,
         error: getErrorMessage(err),
       });
       return;
@@ -184,13 +271,14 @@ export const useMockCall = ({
       setTimeout(() => {
         if (!activeRef.current || !streamRef.current) return;
         startLoopback(streamRef.current, audioRefs);
+        startSilenceMonitor();
         emitEvent({
           state: CallState.Connected,
           message: 'Call answered (demo) — replaying your microphone',
         });
       }, CONNECTED_DELAY_MS),
     );
-  }, [audioRefs, emitEvent, onMicDisconnected]);
+  }, [audioRefs, emitEvent, onMicDisconnected, startSilenceMonitor]);
 
   // Expose hangUp to non-React callers and keep mic mute in sync with the store.
   useEffect(() => {

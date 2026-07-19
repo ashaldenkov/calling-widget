@@ -15,9 +15,12 @@
     background-color: transparent;
     transition: background-color 120ms ease;
 
-    &:hover,
+    &:hover {
+      background-color: color-mix(in srgb, var(--cw-primary) 8%, transparent);
+    }
+
     &[data-selected] {
-      background-color: var(--cw-bg-default);
+      background-color: color-mix(in srgb, var(--cw-primary) 15%, transparent);
     }
   }
 }

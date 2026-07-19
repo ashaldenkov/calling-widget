@@ -1,7 +1,3 @@
-import type { TCountryCode } from 'countries-list';
-
-import type { BrowserWarning } from '../utils/browserDetection';
-
 /**
  * Theme customization the host can pass. `mode` selects the built-in light/dark
  * palette (see src/styles/themes.css). Extensible later (accent, etc.).
@@ -50,18 +46,6 @@ export interface StatusOption {
   color: string;
 }
 
-export interface StatusesResponse {
-  items: StatusOption[];
-  pageInfo: {
-    page: number;
-    perPage: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-}
-
 export interface CustomerStatus {
   id: string;
   name: string;
@@ -72,7 +56,8 @@ export interface CustomerData {
   id: string;
   firstName: string;
   lastName: string;
-  country: TCountryCode;
+  /** ISO 3166-1 alpha-2 country code (e.g. "US"). */
+  country: string;
   status: CustomerStatus | null;
   brandName?: string;
   phoneNumber?: string;
@@ -96,17 +81,7 @@ export const ActiveCallStates = new Set<CallState>([
 ]);
 
 export type WidgetScreen =
-  | 'idle'
-  | 'sipTrunk'
-  | 'changeStatus'
-  | 'calling'
-  | 'error'
-  | 'compatibilityWarning';
-
-export interface MuteNotificationState {
-  visible: boolean;
-  countdown: number;
-}
+  'idle' | 'sipTrunk' | 'changeStatus' | 'calling' | 'error' | 'demoNotice';
 
 export interface WidgetState {
   initOptions: WidgetInitOptions | null;
@@ -125,5 +100,4 @@ export interface WidgetState {
   selectedTrunkId: string | null;
   statusConfirmedDuringCall: boolean;
   isCollapsed: boolean;
-  compatibilityWarnings: BrowserWarning[];
 }

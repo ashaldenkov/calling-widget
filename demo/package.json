@@ -9,8 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "countries-and-timezones": "^3.8.0",
-    "countries-list": "^3.2.2",
     "preact": "^10.0.0"
   },
   "devDependencies": {

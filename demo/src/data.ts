@@ -1,5 +1,3 @@
-import type { TCountryCode } from 'countries-list';
-
 import type {
   CustomerData,
   TrunkListItem,
@@ -36,7 +34,7 @@ export const DEMO_CUSTOMERS: DemoCustomer[] = [
     id: 'cust-1001',
     firstName: 'Emily',
     lastName: 'Carter',
-    country: 'US' as TCountryCode,
+    country: 'US',
     phoneNumber: '+1 415 555 0142',
     brandName: 'Northwind Trading',
     company: 'Northwind Trading',
@@ -69,7 +67,7 @@ export const DEMO_CUSTOMERS: DemoCustomer[] = [
     id: 'cust-1002',
     firstName: 'Lukas',
     lastName: 'Weber',
-    country: 'DE' as TCountryCode,
+    country: 'DE',
     phoneNumber: '+49 69 5550 118',
     brandName: 'Rheinland Logistik',
     company: 'Rheinland Logistik',
@@ -93,7 +91,7 @@ export const DEMO_CUSTOMERS: DemoCustomer[] = [
     id: 'cust-1003',
     firstName: 'Beatriz',
     lastName: 'Almeida',
-    country: 'BR' as TCountryCode,
+    country: 'BR',
     phoneNumber: '+55 11 95555 0173',
     brandName: 'Vale Verde Cosméticos',
     company: 'Vale Verde Cosméticos',
@@ -127,7 +125,7 @@ export const DEMO_CUSTOMERS: DemoCustomer[] = [
     id: 'cust-1004',
     firstName: 'Haruto',
     lastName: 'Tanaka',
-    country: 'JP' as TCountryCode,
+    country: 'JP',
     phoneNumber: '+81 3 5550 0199',
     brandName: 'Sakura Robotics',
     company: 'Sakura Robotics',

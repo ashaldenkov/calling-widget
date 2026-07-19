@@ -28,30 +28,10 @@ const baseProps: Props = {
   searchQuery: '',
   isLoading: false,
   isError: false,
-  isFetchingNextPage: false,
-  hasNextPage: false,
-  onFetchNextPage: vi.fn(),
 };
-
-let triggerObserver: (isIntersecting: boolean) => void;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Arrow functions cannot be constructors — use a class so `new IntersectionObserver(cb)` works
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      constructor(cb: IntersectionObserverCallback) {
-        triggerObserver = (isIntersecting: boolean) =>
-          cb(
-            [{ isIntersecting } as IntersectionObserverEntry],
-            {} as IntersectionObserver,
-          );
-      }
-      observe = vi.fn();
-      disconnect = vi.fn();
-    },
-  );
 });
 
 describe('StatusesList', () => {
@@ -67,7 +47,7 @@ describe('StatusesList', () => {
       expect(screen.getByText(ERR_GENERIC)).toBeInTheDocument();
     });
 
-    it('renders NoResultsFound with hasAppliedFilters=false when list is empty and no search query', () => {
+    it('renders NoResultsFound with hasAppliedFilters=false when empty and no search', () => {
       render(<StatusesList {...baseProps} statuses={[]} searchQuery='' />);
       expect(screen.getByTestId('no-results')).toHaveAttribute(
         'data-filtered',
@@ -75,7 +55,7 @@ describe('StatusesList', () => {
       );
     });
 
-    it('renders NoResultsFound with hasAppliedFilters=true when list is empty but search is active', () => {
+    it('renders NoResultsFound with hasAppliedFilters=true when empty but searching', () => {
       render(<StatusesList {...baseProps} statuses={[]} searchQuery='agent' />);
       expect(screen.getByTestId('no-results')).toHaveAttribute(
         'data-filtered',
@@ -104,55 +84,11 @@ describe('StatusesList', () => {
       fireEvent.click(screen.getByText('Busy'));
       expect(onSelect).toHaveBeenCalledWith('s2');
     });
-  });
 
-  describe('infinite scroll via IntersectionObserver', () => {
-    it('calls onFetchNextPage when the sentinel enters the viewport and hasNextPage is true', () => {
-      const onFetchNextPage = vi.fn();
-      render(
-        <StatusesList
-          {...baseProps}
-          hasNextPage
-          onFetchNextPage={onFetchNextPage}
-        />,
-      );
-      triggerObserver(true);
-      expect(onFetchNextPage).toHaveBeenCalledOnce();
-    });
-
-    it('does NOT call onFetchNextPage when hasNextPage is false', () => {
-      const onFetchNextPage = vi.fn();
-      render(
-        <StatusesList
-          {...baseProps}
-          hasNextPage={false}
-          onFetchNextPage={onFetchNextPage}
-        />,
-      );
-      triggerObserver(true);
-      expect(onFetchNextPage).not.toHaveBeenCalled();
-    });
-
-    it('does NOT call onFetchNextPage while a page fetch is already in progress', () => {
-      const onFetchNextPage = vi.fn();
-      render(
-        <StatusesList
-          {...baseProps}
-          hasNextPage
-          isFetchingNextPage
-          onFetchNextPage={onFetchNextPage}
-        />,
-      );
-      triggerObserver(true);
-      expect(onFetchNextPage).not.toHaveBeenCalled();
-    });
-
-    it('shows a bottom spinner while fetching the next page without hiding the existing list', () => {
-      render(<StatusesList {...baseProps} isFetchingNextPage />);
-      expect(screen.getByText('Available')).toBeInTheDocument();
-      expect(
-        document.querySelectorAll('.cw-list-state').length,
-      ).toBeGreaterThan(0);
+    it('renders only the statuses it is given (parent filters the list)', () => {
+      render(<StatusesList {...baseProps} statuses={[status('s2', 'Busy')]} />);
+      expect(screen.queryByText('Available')).not.toBeInTheDocument();
+      expect(screen.getByText('Busy')).toBeInTheDocument();
     });
   });
 });
