@@ -16,6 +16,7 @@ import {
   resetToIdle,
   setCustomerData,
   setIsCollapsed,
+  setIsEnding,
   setScreen,
   setStatusConfirmedDuringCall,
   widgetState,
@@ -24,13 +25,23 @@ import { ActiveCallStates, CallState } from '../types/types';
 
 // Simulated backend latency for the local status save.
 const STATUS_SAVE_DELAY_MS = 1000;
+// Brief "ending…" state before the call actually tears down.
+const END_CALL_DELAY_MS = 1000;
 
 export const ExternalCallWidget = () => {
   const { screen, callState, customerData, error, isCollapsed } = widgetState;
 
   const startCall = useStartCall();
   const callParent = useRef<HTMLDivElement>(null);
+  const endTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCalling = screen === 'calling';
+
+  useEffect(
+    () => () => {
+      if (endTimerRef.current) clearTimeout(endTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!isCalling || !callParent.current) return;
@@ -55,8 +66,12 @@ export const ExternalCallWidget = () => {
     const cs = widgetState.callState;
 
     if (ActiveCallStates.has(cs)) {
-      setIsCollapsed(true);
-      void hangUpRef.current?.();
+      // Show a brief "ending…" state, then tear the call down.
+      if (widgetState.isEnding) return;
+      setIsEnding(true);
+      endTimerRef.current = setTimeout(() => {
+        void hangUpRef.current?.();
+      }, END_CALL_DELAY_MS);
       return;
     }
 

@@ -189,5 +189,12 @@ describe('CollapsedCallBar', () => {
       fireEvent.click(buttons[buttons.length - 1]); // last = expand (ArrowDropUpIcon)
       expect(widgetState.isCollapsed).toBe(false);
     });
+
+    it('disables the end-call button while the call is ending', () => {
+      widgetState.isEnding = true;
+      render(<CollapsedCallBar customer={mockCustomer} onEndCall={vi.fn()} />);
+      const buttons = screen.getAllByRole('button');
+      expect(buttons[1]).toBeDisabled(); // index 1 = end-call IconButton
+    });
   });
 });

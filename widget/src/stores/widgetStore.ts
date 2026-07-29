@@ -23,6 +23,7 @@ const initialState: WidgetState = {
   trunks: [],
   statuses: DEMO_STATUSES,
   isMicMuted: false,
+  isEnding: false,
   startCallTime: null,
   error: null,
   notification: null,
@@ -87,6 +88,10 @@ export const setMicMuted = (muted: boolean): void => {
   if (widgetState.isMicMuted === muted) return;
   widgetState.isMicMuted = muted;
   eventBus.emit(WidgetEvent.MicToggled, { muted });
+};
+
+export const setIsEnding = (ending: boolean): void => {
+  widgetState.isEnding = ending;
 };
 
 export const setCustomerData = (data: CustomerData | null): void => {

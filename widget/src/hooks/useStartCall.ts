@@ -10,6 +10,7 @@ import { eventBus, WidgetEvent } from '../eventBus';
 import {
   resetToIdle,
   setCallState,
+  setIsEnding,
   setNotification,
   setScreen,
   setStartCallTime,
@@ -39,6 +40,7 @@ export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
         emitStateChange(CallState.Connected);
         break;
       case CallState.Failed: {
+        setIsEnding(false);
         setCallState(CallState.Failed);
         const msg = event.message || ERR_GENERIC;
         setNotification(msg);
@@ -47,6 +49,7 @@ export const useStartCall = (): ((trunkId: string) => Promise<void>) => {
         break;
       }
       case CallState.Ended: {
+        setIsEnding(false);
         setCallState(CallState.Ended);
         setStartCallTime(null);
         emitStateChange(CallState.Ended);

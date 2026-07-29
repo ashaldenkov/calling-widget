@@ -11,7 +11,7 @@ import Flag from '../components/Flag';
 import MuteButton from '../components/MuteButton';
 import { setIsCollapsed, setScreen, widgetState } from '../stores/widgetStore';
 import type { CustomerData } from '../types/types';
-import { Button, Chip, Divider, IconButton } from '../ui';
+import { Button, Chip, Divider, IconButton, Spinner } from '../ui';
 import { callStatus, useLocalTime } from '../utils';
 import { countryName } from '../utils/country';
 
@@ -45,7 +45,7 @@ const ExpandedCallBar = ({ customer, onEndCall }: ExpandedCallBarProps) => {
   const webBaseUrl = widgetState.initOptions?.webBaseUrl;
   const handleGoToProfile = () => {
     if (!webBaseUrl) return;
-    window.open(`${webBaseUrl}/customers/${customer.id}`, '_blank', 'noopener');
+    window.open(webBaseUrl, '_blank', 'noopener');
   };
 
   return (
@@ -92,7 +92,7 @@ const ExpandedCallBar = ({ customer, onEndCall }: ExpandedCallBarProps) => {
               onClick={handleGoToProfile}
               style={{ height: 32 }}
             >
-              Go to profile in Calleague
+              Go to profile
             </Button>
           )}
 
@@ -141,9 +141,16 @@ const ExpandedCallBar = ({ customer, onEndCall }: ExpandedCallBarProps) => {
               variant='outlined'
               tone='danger'
               onClick={onEndCall}
-              startIcon={<CallEndOutlinedIcon />}
+              disabled={widgetState.isEnding}
+              startIcon={
+                widgetState.isEnding ? (
+                  <Spinner size={14} />
+                ) : (
+                  <CallEndOutlinedIcon />
+                )
+              }
             >
-              End call
+              {widgetState.isEnding ? 'Ending…' : 'End call'}
             </Button>
           </div>
         </div>

@@ -13,6 +13,7 @@ export function resetWidgetState(): void {
   widgetState.trunks = [];
   widgetState.statuses = DEMO_STATUSES;
   widgetState.isMicMuted = false;
+  widgetState.isEnding = false;
   widgetState.startCallTime = null;
   widgetState.error = null;
   widgetState.notification = null;

@@ -5,9 +5,9 @@ import { ArrowDropUpIcon, CallEndOutlinedIcon } from '../assets/icons';
 import CallNotificationsSlot from '../components/CallNotificationsSlot';
 import Flag from '../components/Flag';
 import { MuteIconButton } from '../components/MuteButton';
-import { setIsCollapsed } from '../stores/widgetStore';
+import { setIsCollapsed, widgetState } from '../stores/widgetStore';
 import type { CustomerData } from '../types/types';
-import { Divider, IconButton, Tooltip } from '../ui';
+import { Divider, IconButton, Spinner, Tooltip } from '../ui';
 import { callStatus, useLocalTime } from '../utils';
 import { countryName } from '../utils/country';
 
@@ -71,13 +71,18 @@ const CollapsedCallBar = ({ customer, onEndCall }: CollapsedCallBarProps) => {
 
           <div class='cw-bar__actions'>
             <MuteIconButton />
-            <Tooltip title='End call'>
+            <Tooltip title={widgetState.isEnding ? 'Ending…' : 'End call'}>
               <IconButton
                 size='small'
                 onClick={onEndCall}
+                disabled={widgetState.isEnding}
                 style={{ color: 'var(--cw-error-fg)' }}
               >
-                <CallEndOutlinedIcon />
+                {widgetState.isEnding ? (
+                  <Spinner size={16} />
+                ) : (
+                  <CallEndOutlinedIcon />
+                )}
               </IconButton>
             </Tooltip>
             <Divider orientation='vertical' />

@@ -94,6 +94,7 @@ export interface WidgetState {
   trunks: TrunkListItem[];
   statuses: StatusOption[];
   isMicMuted: boolean;
+  isEnding: boolean;
   startCallTime: number | null;
   error: string | null; // message on error screen
   notification: string | null; // notification on any screen

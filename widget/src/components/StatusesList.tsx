@@ -24,6 +24,35 @@ const StatusRow = memo(({ status, isSelected, onSelect }: StatusRowProps) => (
   </div>
 ));
 
+interface StatusesListContentProps {
+  statuses: StatusOption[];
+  selectedStatusId: string | null;
+  onSelect: (id: string) => void;
+}
+
+// Owns the auto-animate parent so the hook attaches to a mounted RadioGroup
+// (not while the outer list is still showing its loading spinner) — this makes
+// filtering slide/fade like the trunk list.
+const StatusesListContent = ({
+  statuses,
+  selectedStatusId,
+  onSelect,
+}: StatusesListContentProps) => {
+  const [parent] = useAutoAnimate<HTMLDivElement>();
+  return (
+    <RadioGroup value={selectedStatusId} onChange={onSelect} parentRef={parent}>
+      {statuses.map((status) => (
+        <StatusRow
+          key={status.id}
+          status={status}
+          isSelected={selectedStatusId === status.id}
+          onSelect={onSelect}
+        />
+      ))}
+    </RadioGroup>
+  );
+};
+
 interface StatusesListProps {
   statuses: StatusOption[];
   selectedStatusId: string | null;
@@ -41,8 +70,6 @@ const StatusesList = ({
   isLoading,
   isError,
 }: StatusesListProps) => {
-  const [parent] = useAutoAnimate<HTMLDivElement>();
-
   if (isLoading) {
     return (
       <div class='cw-list-state'>
@@ -66,16 +93,11 @@ const StatusesList = ({
   }
 
   return (
-    <RadioGroup value={selectedStatusId} onChange={onSelect} parentRef={parent}>
-      {statuses.map((status) => (
-        <StatusRow
-          key={status.id}
-          status={status}
-          isSelected={selectedStatusId === status.id}
-          onSelect={onSelect}
-        />
-      ))}
-    </RadioGroup>
+    <StatusesListContent
+      statuses={statuses}
+      selectedStatusId={selectedStatusId}
+      onSelect={onSelect}
+    />
   );
 };
 

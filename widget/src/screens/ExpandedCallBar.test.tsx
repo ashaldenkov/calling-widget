@@ -197,6 +197,14 @@ describe('ExpandedCallBar', () => {
       expect(onEndCall).toHaveBeenCalledOnce();
     });
 
+    it('shows a disabled "Ending…" state while the call is tearing down', () => {
+      widgetState.isEnding = true;
+      render(<ExpandedCallBar customer={mockCustomer} onEndCall={vi.fn()} />);
+      const btn = screen.getByText('Ending…').closest('button');
+      expect(btn).toBeDisabled();
+      expect(screen.queryByText('End call')).not.toBeInTheDocument();
+    });
+
     it('sets widgetState.screen="changeStatus" when the edit status button is clicked', () => {
       render(<ExpandedCallBar customer={mockCustomer} onEndCall={vi.fn()} />);
       const editBtn = document.querySelector('.cw-bar-expanded__status button');
@@ -217,19 +225,17 @@ describe('ExpandedCallBar', () => {
     it('hides the "Go to profile" button when no webBaseUrl is configured', () => {
       // resetWidgetState leaves initOptions null -> no profile link.
       render(<ExpandedCallBar customer={mockCustomer} onEndCall={vi.fn()} />);
-      expect(
-        screen.queryByText('Go to profile in Calleague'),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText('Go to profile')).not.toBeInTheDocument();
     });
 
-    it("opens the customer profile in a new tab when 'Go to profile in Calleague' is clicked", () => {
-      setInitOptions({ webBaseUrl: 'https://app.calleague.com' });
+    it("opens the configured webBaseUrl in a new tab when 'Go to profile' is clicked", () => {
+      setInitOptions({ webBaseUrl: 'https://example.com/in/jane' });
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
       try {
         render(<ExpandedCallBar customer={mockCustomer} onEndCall={vi.fn()} />);
-        fireEvent.click(screen.getByText('Go to profile in Calleague'));
+        fireEvent.click(screen.getByText('Go to profile'));
         expect(openSpy).toHaveBeenCalledWith(
-          'https://app.calleague.com/customers/cust-1',
+          'https://example.com/in/jane',
           '_blank',
           'noopener',
         );

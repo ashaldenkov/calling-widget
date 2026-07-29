@@ -41,7 +41,7 @@
 
     &:focus-within {
       border-color: var(--cw-primary);
-      outline: 2px solid var(--cw-primary);
+      outline: 1px solid color-mix(in srgb, var(--cw-primary) 45%, transparent);
       outline-offset: -1px;
     }
   }
