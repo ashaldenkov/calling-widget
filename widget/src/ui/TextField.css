@@ -1,0 +1,107 @@
+@layer primitives {
+  .cw-textfield {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    font-family: var(--cw-font-family);
+
+    &[data-full-width] {
+      display: flex;
+      width: 100%;
+    }
+  }
+
+  .cw-textfield__label {
+    position: absolute;
+    top: -6px;
+    left: 12px;
+    padding: 0 4px;
+    background-color: var(--cw-bg-paper);
+    color: var(--cw-text-secondary);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .cw-textfield[data-error] .cw-textfield__label {
+    color: var(--cw-error-fg);
+  }
+
+  .cw-textfield__control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius-control);
+    background-color: var(--cw-bg-paper);
+    transition: border-color var(--cw-duration-shortest)
+      var(--cw-easing-standard);
+
+    &:focus-within {
+      border-color: var(--cw-primary);
+      outline: 1px solid color-mix(in srgb, var(--cw-primary) 45%, transparent);
+      outline-offset: -1px;
+    }
+  }
+
+  .cw-textfield[data-multiline] .cw-textfield__control {
+    height: auto;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  .cw-textfield[data-error] .cw-textfield__control {
+    border-color: var(--cw-error-fg);
+  }
+
+  .cw-textfield[data-error] .cw-textfield__control:focus-within {
+    border-color: var(--cw-error-fg);
+    outline: none;
+  }
+
+  .cw-textfield__input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--cw-text-primary);
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.43;
+    padding: 0;
+    resize: none;
+
+    &::placeholder {
+      color: var(--cw-text-secondary);
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+  }
+
+  .cw-textfield[data-multiline] .cw-textfield__input {
+    line-height: 1.43;
+    padding: 8px 12px;
+  }
+
+  .cw-textfield__adornment {
+    display: inline-flex;
+    align-items: center;
+    color: var(--cw-text-secondary);
+    flex-shrink: 0;
+  }
+
+  .cw-textfield__helper {
+    font-size: 12px;
+    color: var(--cw-text-secondary);
+  }
+
+  .cw-textfield[data-error] .cw-textfield__helper {
+    color: var(--cw-error-fg);
+  }
+}

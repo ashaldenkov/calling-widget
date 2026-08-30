@@ -1,0 +1,99 @@
+@layer reset, tokens, themes, primitives, screens;
+
+@import './reset.css';
+@import './tokens.css';
+@import './themes.css';
+
+@import '../ui/Button.css';
+@import '../ui/IconButton.css';
+@import '../ui/TextField.css';
+@import '../ui/Radio.css';
+@import '../ui/RadioGroup.css';
+@import '../ui/Spinner.css';
+@import '../ui/Dialog.css';
+@import '../ui/Chip.css';
+@import '../ui/Divider.css';
+@import '../ui/Tooltip.css';
+@import '../ui/Paper.css';
+
+@import '../components/CallNotification.css';
+@import '../components/Flag.css';
+@import '../components/NoResultsFound.css';
+@import '../components/TrunkList.css';
+@import '../screens/SipTrunkScreen.css';
+@import '../screens/ExpandedCallBar.css';
+@import '../screens/CollapsedCallBar.css';
+@import '../screens/ChangeStatusScreen.css';
+@import '../screens/ErrorScreen.css';
+
+@layer screens {
+  .cw-flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cw-flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cw-flex-row-center {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .cw-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cw-text-h6 {
+    font-size: var(--cw-font-size-h6);
+    line-height: var(--cw-line-height-h6);
+    letter-spacing: var(--cw-letter-spacing-h6);
+    font-weight: var(--cw-font-weight-medium);
+  }
+
+  .cw-text-body1 {
+    font-size: var(--cw-font-size-body1);
+    line-height: var(--cw-line-height-body1);
+    letter-spacing: var(--cw-letter-spacing);
+    font-weight: var(--cw-font-weight-regular);
+  }
+
+  .cw-text-body2 {
+    font-size: var(--cw-font-size-body2);
+    line-height: var(--cw-line-height-body2);
+    letter-spacing: var(--cw-letter-spacing);
+    font-weight: var(--cw-font-weight-medium);
+  }
+
+  .cw-text-body3 {
+    font-size: var(--cw-font-size-body3);
+    line-height: var(--cw-line-height-body3);
+    letter-spacing: var(--cw-letter-spacing);
+    font-weight: var(--cw-font-weight-regular);
+  }
+
+  .cw-text-body4 {
+    font-size: var(--cw-font-size-body4);
+    line-height: var(--cw-line-height-body4);
+    letter-spacing: var(--cw-letter-spacing-body4);
+    font-weight: var(--cw-font-weight-medium);
+  }
+
+  .cw-text-caption {
+    font-size: var(--cw-font-size-caption);
+    line-height: var(--cw-line-height-caption);
+    letter-spacing: var(--cw-letter-spacing-caption);
+    font-weight: var(--cw-font-weight-regular);
+  }
+
+  .cw-text-secondary {
+    color: var(--cw-text-secondary);
+  }
+}

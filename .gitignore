@@ -1,27 +1,25 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
+# Dependencies
 node_modules
+
+# Build output
+widget/dist
+demo/dist
 dist
 dist-ssr
 *.local
-# Editor directories and files
+
+# Widget artifacts copied into the demo host by the build scripts
+demo/public/call-widget.js
+demo/public/loader.js
+demo/public/call-widget.css
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
-.cursor
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 .env
-coverage/
-.claude/*.local
