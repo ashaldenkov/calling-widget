@@ -1,3 +1,4 @@
+import { createPortal } from 'preact/compat';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 
 import type { CustomerStatus } from '../../widget/src/types/types';
@@ -185,6 +186,14 @@ export function App() {
   const [commentOverrides, setCommentOverrides] = useState<
     Record<string, CustomerComment[]>
   >({});
+  // Guided tour + "event landed" highlight.
+  const [tourStep, setTourStep] = useState(0);
+  const [tourOpen, setTourOpen] = useState(false);
+  // Overlay hidden while the user freely interacts (trunk pick, wrap-up).
+  const [paused, setPaused] = useState(false);
+  const [spotRect, setSpotRect] = useState<Rect | null>(null);
+  const [highlight, setHighlight] = useState(false);
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const widgetRef = useRef<CallWidgetAPI | null>(null);
 
   const base = DEMO_CUSTOMERS.find((c) => c.id === selectedId)!;
@@ -195,6 +204,11 @@ export function App() {
   };
   const localTime = useLocalTime(customer.country);
   const countryLabel = countryName(customer.country);
+  // A comment the widget just emitted (prepended, so it sits at index 0).
+  const hasLiveComment = (commentOverrides[base.id]?.length ?? 0) > 0;
+  // Keep the newest comment lit while the final tour step explains the event.
+  const commentLit =
+    highlight || (tourOpen && tourStep === TOUR.length - 1 && hasLiveComment);
 
   // Reflect the CRM theme on <html>.
   useEffect(() => {
@@ -212,6 +226,18 @@ export function App() {
     })
       .then((api) => {
         widgetRef.current = api;
+
+        // Tour step 0 → 1: the call has started (un-hide the overlay).
+        api.on('call_state_change', (payload) => {
+          const st = (payload as { state?: string }).state;
+          if (st === 'calling' || st === 'ringing' || st === 'connected') {
+            setTourStep((s) => {
+              if (s === 0) setPaused(false);
+              return s === 0 ? 1 : s;
+            });
+          }
+        });
+
         api.on('status_confirmed', (payload) => {
           const p = payload as {
             customerId: string;
@@ -231,11 +257,72 @@ export function App() {
               [p.customerId]: [entry, ...(prev[p.customerId] ?? [])],
             }));
           }
+          // Reflect the event on the host page so it's visible.
+          setSelectedId(p.customerId);
+          setView('customers');
+          setHighlight(true);
+          window.setTimeout(() => setHighlight(false), 2500);
+          // Tour step 4 → 5: wrap-up done, show where the event landed.
+          setTourStep((s) => {
+            if (s === 4) setPaused(false);
+            return s === 4 ? 5 : s;
+          });
         });
       })
       .catch((err) => console.error('[demo] widget load failed:', err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tour step 3 → 4: navigated away from the customers page (one hop is enough).
+  useEffect(() => {
+    if (view !== 'customers') setTourStep((s) => (s === 3 ? 4 : s));
+  }, [view]);
+
+  // Follow the spotlighted element (it may move, scroll, or resize) each frame,
+  // and — on the "expand" step — advance once the widget panel is expanded.
+  useEffect(() => {
+    if (!tourOpen) {
+      setSpotRect(null);
+      return;
+    }
+    let raf = 0;
+    const tick = () => {
+      const el = resolveTourTarget(TOUR[tourStep].target);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setSpotRect((prev) =>
+          prev &&
+          Math.abs(prev.top - r.top) < 0.5 &&
+          Math.abs(prev.left - r.left) < 0.5 &&
+          Math.abs(prev.width - r.width) < 0.5 &&
+          Math.abs(prev.height - r.height) < 0.5
+            ? prev
+            : { top: r.top, left: r.left, width: r.width, height: r.height },
+        );
+      } else {
+        setSpotRect((prev) => (prev === null ? prev : null));
+      }
+      // Step 1 → 2: once expanded, linger ~5s on the full call view before moving on.
+      if (
+        tourStep === 1 &&
+        isWidgetExpanded() &&
+        expandTimerRef.current === null
+      ) {
+        expandTimerRef.current = setTimeout(() => {
+          setTourStep((s) => (s === 1 ? 2 : s));
+        }, 5000);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (expandTimerRef.current !== null) {
+        clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = null;
+      }
+    };
+  }, [tourOpen, tourStep]);
 
   useEffect(() => {
     widgetRef.current?.emit('customize', { mode });
@@ -245,6 +332,8 @@ export function App() {
   }, [accent]);
 
   const handleCall = () => {
+    // Step 0: hide the guide so the trunk picker isn't buried under the dim.
+    if (tourOpen && tourStep === 0) setPaused(true);
     widgetRef.current?.emit('call', {
       customer: {
         id: customer.id,
@@ -261,31 +350,39 @@ export function App() {
 
   return (
     <div class='demo'>
-      {/* ---- Intro: what this actually is ---- */}
-      <header class='demo__intro'>
-        <div class='demo__introMain'>
-          <span class='demo__pill'>Live demo</span>
+      {/* ---- Left column: pitch + guided tour ---- */}
+      <aside class='demo__aside'>
+        <div class='demo__intro'>
           <h1 class='demo__headline'>
             A call widget that drops into <em>any</em> web app.
           </h1>
           <p class='demo__copy'>
-            The framed window below stands in for your product — say, your team's
-            custom CRM. The floating panel in its corner is a self-contained call
-            widget you add with two files (<code>loader.js</code> +{' '}
-            <code>call-widget.js</code>, ~42&nbsp;KB gzip). It renders inside its
-            own <strong>Shadow DOM</strong>, so host and widget styles never leak
-            into each other, and it adapts to your brand. Click an accent or the
-            dark toggle to watch it restyle — then make a call and browse the
-            pages: the widget stays with you.
+            The framed window is a mock host app — a CRM. The floating panel in
+            its corner is a self-contained call widget you add with two files
+            (<code>loader.js</code> + <code>call-widget.js</code>, ~42&nbsp;KB
+            gzip). It renders inside its own <strong>Shadow DOM</strong>, so host
+            and widget styles never leak into each other, and it adapts to your
+            brand.
           </p>
+          <ul class='demo__chips'>
+            <li class='chip-tag'>Shadow-DOM isolated</li>
+            <li class='chip-tag'>~42 KB gzip</li>
+            <li class='chip-tag'>Framework-agnostic</li>
+            <li class='chip-tag'>Themeable</li>
+          </ul>
         </div>
-        <ul class='demo__chips'>
-          <li class='chip-tag'>Shadow-DOM isolated</li>
-          <li class='chip-tag'>~42 KB gzip</li>
-          <li class='chip-tag'>Framework-agnostic</li>
-          <li class='chip-tag'>Themeable</li>
-        </ul>
-      </header>
+
+        <button
+          class='demo__start'
+          onClick={() => {
+            setTourStep(0);
+            setTourOpen(true);
+          }}
+        >
+          <span class='demo__start-icon'>▶</span>
+          {tourOpen ? 'Restart the guided tour' : 'Start the guided tour'}
+        </button>
+      </aside>
 
       {/* ---- Framed host "browser window" ---- */}
       <div class='frame'>
@@ -315,7 +412,7 @@ export function App() {
                 </span>
               </div>
 
-              <nav class='nav'>
+              <nav class='nav' data-tour='nav'>
                 {NAV_ITEMS.map((item) => (
                   <button
                     key={item.id}
@@ -330,35 +427,39 @@ export function App() {
 
               <div class='topbar__spacer' />
 
-              <div class='topbar__group'>
-                <span class='topbar__label'>Accent</span>
-                <div class='swatches'>
-                  {ACCENTS.map((a) => (
-                    <button
-                      key={a.value}
-                      class='swatch'
-                      title={a.name}
-                      aria-label={`${a.name} accent`}
-                      data-active={accent === a.value}
-                      style={{ background: a.value }}
-                      onClick={() => setAccent(a.value)}
-                    >
-                      {accent === a.value ? <CheckIcon /> : null}
-                    </button>
-                  ))}
+              <div class='topbar__theme' data-tour='theme'>
+                <div class='topbar__group'>
+                  <span class='topbar__label'>Accent</span>
+                  <div class='swatches'>
+                    {ACCENTS.map((a) => (
+                      <button
+                        key={a.value}
+                        class='swatch'
+                        title={a.name}
+                        aria-label={`${a.name} accent`}
+                        data-active={accent === a.value}
+                        style={{ background: a.value }}
+                        onClick={() => setAccent(a.value)}
+                      >
+                        {accent === a.value ? <CheckIcon /> : null}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <button
-                class='icon-btn'
-                title={mode === 'light' ? 'Switch to dark' : 'Switch to light'}
-                aria-label='Toggle theme'
-                onClick={() =>
-                  setMode((m) => (m === 'light' ? 'dark' : 'light'))
-                }
-              >
-                {mode === 'light' ? <MoonIcon /> : <SunIcon />}
-              </button>
+                <button
+                  class='icon-btn'
+                  title={
+                    mode === 'light' ? 'Switch to dark' : 'Switch to light'
+                  }
+                  aria-label='Toggle theme'
+                  onClick={() =>
+                    setMode((m) => (m === 'light' ? 'dark' : 'light'))
+                  }
+                >
+                  {mode === 'light' ? <MoonIcon /> : <SunIcon />}
+                </button>
+              </div>
             </header>
 
             {view === 'customers' && (
@@ -445,6 +546,7 @@ export function App() {
                       {customer.status ? (
                         <span
                           class='chip'
+                          data-tour='status'
                           style={{
                             color: customer.status.color,
                             background: `${customer.status.color}1f`,
@@ -457,9 +559,15 @@ export function App() {
                           {customer.status.name}
                         </span>
                       ) : (
-                        <span class='chip chip--empty'>No status</span>
+                        <span class='chip chip--empty' data-tour='status'>
+                          No status
+                        </span>
                       )}
-                      <button class='call-btn' onClick={handleCall}>
+                      <button
+                        class='call-btn'
+                        data-tour='call'
+                        onClick={handleCall}
+                      >
                         <PhoneIcon />
                         Call customer
                       </button>
@@ -488,8 +596,12 @@ export function App() {
                       <p class='muted'>No comments yet.</p>
                     ) : (
                       <div class='timeline'>
-                        {customer.comments.map((cm) => (
-                          <div key={cm.id} class='comment'>
+                        {customer.comments.map((cm, i) => (
+                          <div
+                            key={cm.id}
+                            class='comment'
+                            data-highlight={commentLit && i === 0 ? '' : undefined}
+                          >
                             <span class='avatar comment__avatar'>
                               {cm.author[0]}
                             </span>
@@ -543,6 +655,41 @@ export function App() {
           </div>
         </div>
       </div>
+
+      {/* ---- Guided tour: spotlight overlay, portaled above the widget ---- */}
+      {tourOpen &&
+        createPortal(
+          paused ? (
+            <button class='tour-resume' onClick={() => setPaused(false)}>
+              ▸ Resume guide
+            </button>
+          ) : (
+            <div class='tour-overlay'>
+              {spotRect ? (
+                <div class='tour-spot' style={spotStyle(spotRect)} />
+              ) : (
+                <div class='tour-overlay__dim' />
+              )}
+              <Tour
+                step={tourStep}
+                total={TOUR.length}
+                data={TOUR[tourStep]}
+                done={tourStep === TOUR.length - 1}
+                style={cardStyle(spotRect)}
+                onAction={() => {
+                  const act = TOUR[tourStep].action;
+                  if (act?.kind === 'continue') {
+                    setTourStep((s) => Math.min(s + 1, TOUR.length - 1));
+                  } else if (act?.kind === 'ok') {
+                    setPaused(true);
+                  }
+                }}
+                onSkip={() => setTourOpen(false)}
+              />
+            </div>
+          ),
+          document.body,
+        )}
     </div>
   );
 }
@@ -663,5 +810,173 @@ function ReportsView() {
         </table>
       </section>
     </div>
+  );
+}
+
+/* ---- Guided tour ---- */
+
+/** What the spotlight cut-out points at on each step. */
+type TourTarget = 'call' | 'widget' | 'theme' | 'nav' | 'status';
+
+interface TourStep {
+  target: TourTarget;
+  title: string;
+  body: string;
+  /** Short "do X to continue" line shown while a step waits for its action. */
+  hint: string;
+  /** Optional button that advances/hides the overlay instead of a passive hint. */
+  action?: { kind: 'continue' | 'ok'; label: string };
+}
+
+const TOUR: TourStep[] = [
+  {
+    target: 'call',
+    title: 'Start a call',
+    body: 'This mock CRM has the widget embedded. Kick things off from the host: hit “Call customer”, then pick a trunk in the widget. (No real telephony — the demo just loops your mic back.)',
+    hint: 'Click “Call customer” to continue…',
+  },
+  {
+    target: 'widget',
+    title: 'Your call, in the corner',
+    body: 'The call is live in the widget’s own Shadow DOM, parked in the bottom-right corner. Expand it with the ▴ chevron for the full call view — customer, country, live duration.',
+    hint: 'Expand the widget to continue…',
+  },
+  {
+    target: 'theme',
+    title: 'Match the host brand',
+    body: 'Try the accent swatches and the dark toggle — the widget restyles instantly to match the host, reading the theme it’s handed over the same event bus. Continue when you’re done.',
+    hint: '',
+    action: { kind: 'continue', label: 'Continue' },
+  },
+  {
+    target: 'nav',
+    title: 'Browse the site',
+    body: 'Open Dashboard or Reports. The call travels with you — the widget stays put across route changes, even mid-call.',
+    hint: 'Open another page to continue…',
+  },
+  {
+    target: 'widget',
+    title: 'Wrap up the call',
+    body: 'End the call, choose a status, and (optionally) leave a comment for this customer. Hit OK to hide this guide while you do it — it’ll pick back up once the status is saved.',
+    hint: '',
+    action: { kind: 'ok', label: 'OK, let me try' },
+  },
+  {
+    target: 'status',
+    title: 'The host owns the data',
+    body: 'The widget never touches your records — it just emits events. Your host page listened for “status_confirmed” and applied it: the new status is spotlighted here, and your comment (if any) was added to the timeline.',
+    hint: '',
+  },
+];
+
+/** Locate the DOM element a tour step spotlights. */
+function resolveTourTarget(target: TourTarget): Element | null {
+  if (target === 'widget') {
+    return (
+      document
+        .getElementById('call-widget-root')
+        ?.shadowRoot?.querySelector('.cw-paper') ?? null
+    );
+  }
+  return document.querySelector(`[data-tour="${target}"]`);
+}
+
+/** True when the widget's call panel is currently expanded. */
+function isWidgetExpanded(): boolean {
+  return !!document
+    .getElementById('call-widget-root')
+    ?.shadowRoot?.querySelector('.cw-bar-expanded');
+}
+
+interface Rect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+/** Fixed-position style for the spotlight hole (padded around the target). */
+function spotStyle(rect: Rect): Record<string, string> {
+  const pad = 8;
+  return {
+    top: `${rect.top - pad}px`,
+    left: `${rect.left - pad}px`,
+    width: `${rect.width + pad * 2}px`,
+    height: `${rect.height + pad * 2}px`,
+  };
+}
+
+/** Fixed-position style for the info card, placed next to the spotlight. */
+function cardStyle(rect: Rect | null): Record<string, string> {
+  if (!rect) {
+    return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+  }
+  const W = 340;
+  const GAP = 16;
+  const EST_H = 230;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const left = Math.max(
+    12,
+    Math.min(rect.left + rect.width / 2 - W / 2, vw - W - 12),
+  );
+  const fitsBelow = rect.top + rect.height + GAP + EST_H <= vh;
+  return fitsBelow
+    ? { left: `${left}px`, top: `${rect.top + rect.height + GAP}px` }
+    : { left: `${left}px`, bottom: `${vh - rect.top + GAP}px` };
+}
+
+interface TourProps {
+  step: number;
+  total: number;
+  data: TourStep;
+  done: boolean;
+  style: Record<string, string>;
+  onAction: () => void;
+  onSkip: () => void;
+}
+
+function Tour({ step, total, data, done, style, onAction, onSkip }: TourProps) {
+  return (
+    <section class='tour' style={style}>
+      <div class='tour__head'>
+        <span class='tour__badge'>Guided tour</span>
+        <span class='tour__count'>
+          {step + 1} / {total}
+        </span>
+        <button class='tour__close' aria-label='Skip tour' onClick={onSkip}>
+          ×
+        </button>
+      </div>
+      <h3 class='tour__title'>{data.title}</h3>
+      <p class='tour__body'>{data.body}</p>
+      <div class='tour__foot'>
+        {done ? (
+          <div class='tour__foot-right'>
+            <button class='tour__btn tour__btn--primary' onClick={onSkip}>
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            <button class='tour__skip-all' onClick={onSkip}>
+              Skip tour
+            </button>
+            <div class='tour__foot-right'>
+              {data.action ? (
+                <button
+                  class='tour__btn tour__btn--primary'
+                  onClick={onAction}
+                >
+                  {data.action.label}
+                </button>
+              ) : (
+                <span class='tour__wait'>{data.hint}</span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
