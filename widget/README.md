@@ -322,7 +322,7 @@ Copy `dist/loader.js` and `dist/call-widget.js` into the host app's static folde
 
 ## CI/CD CDN deploy
 
-GitLab pipeline deploys to **DigitalOcean Spaces** (S3-compatible) and publishes:
+GitLab pipeline deploys to CDN and publishes:
 
 ```text
 call-widget/
@@ -357,47 +357,6 @@ Cache policy:
 
 - `v/<version>/*` — `Cache-Control: public, max-age=31536000, immutable`
 - `latest/*` and root `loader.js` — `Cache-Control: public, max-age=300, must-revalidate`
-
-### Infrastructure
-
-The DigitalOcean Spaces bucket and CDN are provisioned via Terraform (`terraform-scalefinal/do/dialers`):
-
-- Bucket ACL: `public-read`
-- CORS: `*` (all origins allowed)
-- CDN: enabled with 600 s TTL
-
-Bucket credentials are stored in Vault automatically by Terraform at:
-
-- mount: `dialers`
-- path: `prod/_common/buckets/call-widget/terraform`
-- fields: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET_NAME`, `AWS_REGION`, `AWS_ENDPOINT`
-
-### CI variables
-
-All variables have defaults in `.gitlab-ci.yml`. Override only if needed:
-
-| Variable                 | Default                                      | Description                           |
-| ------------------------ | -------------------------------------------- | ------------------------------------- |
-| `VAULT_AUTH_ROLE`        | `dialers-gitlab`                             | GitLab JWT role in Vault              |
-| `VAULT_MOUNT`            | `dialers`                                    | Vault KV mount                        |
-| `VAULT_SECRET_PATH`      | `prod/_common/buckets/call-widget/terraform` | Vault secret path                     |
-| `WIDGET_STORAGE_PREFIX`  | `call-widget`                                | S3 key prefix                         |
-| `WIDGET_S3_BUCKET`       | from Vault                                   | Override bucket name                  |
-| `WIDGET_S3_ENDPOINT_URL` | from Vault                                   | Override S3 endpoint                  |
-| `AWS_DEFAULT_REGION`     | from Vault                                   | Override region                       |
-| `WIDGET_CDN_BASE_URL`    | —                                            | When set, prints CDN URLs in job logs |
-
-### Manual operations
-
-- `deploy_cdn` — available as a manual button on `main` branch; runs automatically on tags and web/API triggers.
-- `list_cdn_versions` — lists all uploaded `v/<version>` builds with CDN URLs.
-- `promote_existing_version` — promotes any existing version to `latest` without rebuild (rollback / hot switch). Pass variable `SOURCE_VERSION=v1.2.3`.
-
-Example CDN URLs (when `WIDGET_CDN_BASE_URL=https://cdn.example.com`):
-
-- `https://cdn.example.com/call-widget/loader.js`
-- `https://cdn.example.com/call-widget/latest/call-widget.js`
-- `https://cdn.example.com/call-widget/v/1.2.3/call-widget.js`
 
 ## Releases & versioning
 
